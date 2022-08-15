@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/urfave/cli/v2"
+
 	"github.com/google/osv/tools/scanner/internal/lockfiles"
 	"github.com/google/osv/tools/scanner/internal/osv"
 	"github.com/google/osv/tools/scanner/internal/sbom"
@@ -174,17 +176,64 @@ func printResults(query osv.BatchedQuery, resp *osv.BatchedResponse) {
 // TODO(ochang): Machine readable output format.
 // TODO(ochang): Ability to specify type of input.
 func main() {
-	flag.Usage = usage
-	flag.Parse()
 
 	var query osv.BatchedQuery
 
-	for _, arg := range flag.Args() {
-		if err := scan(&query, arg); err != nil {
-			log.Printf("scan failed: %v\n", err)
-			return
-		}
+	app := &cli.App{
+		Name:  "osv-scanner",
+		Usage: "scans various mediums for dependencies and matches it against the OSV database",
+		Commands: []*cli.Command{{
+			Name:  "docker",
+			Usage: "scan docker images",
+			Action: func(context *cli.Context) error {
+				if context.NArg() == 0 {
+					return errors.New("No container name specified")
+				}
+				for _, container := range context.Args().Slice() {
+					// TODO: Automatically figure out what docker base image
+					// and scan appropriately.
+					scanDebianDocker(&query, container)
+				}
+				return nil
+			},
+			ArgsUsage: "container-name1 container-name2...",
+		},
+			{
+				Name:  "lockfile",
+				Usage: "scan package lockfiles",
+				Action: func(context *cli.Context) error {
+					if context.NArg() == 0 {
+						return errors.New("No lockfile path specified")
+					}
+					for _, lockfile := range context.Args().Slice() {
+						// TODO: Automatically figure out what docker base image
+						// and scan appropriately.
+						scanFile(&query, lockfile)
+					}
+					return nil
+				},
+				ArgsUsage: "path1 path2...",
+			},
+		},
 	}
+	if err := app.Run(os.Args); err != nil {
+		log.Fatal(err)
+	} //parser := cli.New.NewParser(
+	//	"osv-scanner",
+	//	"Scans various mediums for dependencies and matches it against the OSV database")
+	//
+	//dockerCmd := parser.NewCommand("docker", "Scan docker image")
+	//dockerImageName := dockerCmd.StringPositional(nil)
+	//
+	//lockfileCmd := parser.NewCommand("lockfile", "Scan docker image")
+	//lockfileName := lockfileCmd.StringPositional()
+
+	// for _, arg := range flag.Args() {
+	// 	if err := scan(&query, arg); err != nil {
+	// 		log.Printf("scan failed: %v\n", err)
+	// 		return
+	// 	}
+	// }
 
 	resp, err := osv.MakeRequest(query)
 	if err != nil {

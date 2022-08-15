@@ -10,6 +10,7 @@ import (
 const (
 	// QueryEndpoint is the URL for posting queries to OSV.
 	QueryEndpoint = "https://api-staging.osv.dev/v1/querybatch"
+	// QueryEndpoint = "http://127.0.0.1:8080/v1/querybatch"
 	// BaseVulnerabilityURL is the base URL for detailed vulnerability views.
 	BaseVulnerabilityURL = "https://osv.dev/vulnerability/"
 )
