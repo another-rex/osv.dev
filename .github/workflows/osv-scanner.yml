@@ -21,6 +21,8 @@ jobs:
     name: Scan for vulns
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
       - name: Hello world action step
         id: hello-osv-scanner
         uses: ./tools/osv-scanner/
