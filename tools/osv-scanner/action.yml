@@ -9,4 +9,5 @@ runs:
   using: 'docker'
   image: 'Dockerfile'
   args:
-    - "--skip-git" ${{ inputs.to-scan }}
+    - '--skip-git'
+    - ${{ inputs.to-scan }}
