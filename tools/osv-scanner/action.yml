@@ -4,7 +4,7 @@ inputs:
   to-scan: 
     description: 'Directory to scan'
     required: true
-    default: '.'
+    default: '/github/workspace'
 runs:
   using: 'docker'
   image: 'Dockerfile'

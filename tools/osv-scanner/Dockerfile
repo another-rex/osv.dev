@@ -35,4 +35,4 @@ RUN git config --global --add safe.directory '*'
 WORKDIR /root/
 COPY --from=0 /src/osv-scanner ./
 
-ENTRYPOINT ["./osv-scanner"]
+ENTRYPOINT ["/root/osv-scanner"]
