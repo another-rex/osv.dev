@@ -29,9 +29,8 @@ RUN apk --no-cache add \
     ca-certificates \
     git
 
-RUN mkdir -p /github/workspace
 # Allow git to run on mounted directories
-RUN git config --global --add safe.directory '/github/workspace'
+RUN git config --global --add safe.directory '*'
 
 WORKDIR /root/
 COPY --from=0 /src/osv-scanner ./
