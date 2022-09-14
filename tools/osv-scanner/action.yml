@@ -1,0 +1,12 @@
+name: 'osv-scanner'
+description: 'Scans your directory against the OSV database'
+inputs:
+  to-scan: 
+    description: 'Directory to scan'
+    required: true
+    default: '.'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  args:
+    - ${{ inputs.to-scan }}
