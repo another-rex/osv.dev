@@ -377,6 +377,8 @@ class Importer:
       converted_vulns = executor.map(convert_blob_to_vuln, listed_blob_names)
       for cv in converted_vulns:
         if cv:
+          logging.info('Requesting analysis of bucket entry: %s/%s',
+                       source_repo.bucket, cv[1])
           self._request_analysis_external(source_repo, cv[0], cv[1])
 
     source_repo.last_update_date = utcnow().date()
