@@ -348,14 +348,26 @@ pre {
   --mdc-text-field-fill-color: rgba(255, 255, 255, 0.3);
   --mdc-text-field-label-ink-color: $osv-text-color;
 
+  .search_result_box {
+    background-color: #80868b;
+    padding: 20px;
+    .suggestion-grid {
+      display: grid;
+      gap: 5px;
+      grid-template-columns: 50px 1fr;
+    }
+  }
+
   // Make the inner search field full-width.
   .query-field {
     width: 100%;
   }
 
-  // Hax: Use our own icon because mwc-textfield supplies a dark gray one. Maybe M3 will fix it:
-  // https://github.com/material-components/material-web/commit/0c200ecf04a533b1dc56932c3979e3e5d8fb7d73
-  position: relative;
+  .relative {
+    // Hax: Use our own icon because mwc-textfield supplies a dark gray one. Maybe M3 will fix it:
+    // https://github.com/material-components/material-web/commit/0c200ecf04a533b1dc56932c3979e3e5d8fb7d73
+    position: relative;
+  }
   .search-icon {
     position: absolute;
     top: 50%;

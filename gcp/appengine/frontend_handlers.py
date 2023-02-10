@@ -28,6 +28,7 @@ from flask import request
 from flask import url_for
 import markdown2
 from urllib import parse
+from google.cloud import ndb
 
 import cache
 import osv
@@ -133,6 +134,23 @@ def about():
   return render_template('about.html')
 
 
+@blueprint.route('/list-autocomplete')
+def list_vulnerabilities_autocomplete():
+  is_turbo_frame = request.headers.get('Turbo-Frame')
+  # Remove page parameter if not from turbo frame
+  if not is_turbo_frame:
+    return abort(400)
+
+  query = request.args.get('q', '')
+  ecosystem = request.args.get('ecosystem')
+  results = osv_project_query(query, 1, 10, False, ecosystem)
+
+  return render_template(
+      'search_box.html',
+      vulnerabilities=results['items'],
+      projects=results['projects'])
+
+
 @blueprint.route('/list')
 def list_vulnerabilities():
   """Main page."""
@@ -149,7 +167,7 @@ def list_vulnerabilities():
   query = request.args.get('q', '')
   page = int(request.args.get('page', 1))
   ecosystem = request.args.get('ecosystem')
-  results = osv_query(query, page, False, ecosystem)
+  results = osv_query(query, page, _PAGE_SIZE, False, ecosystem)
 
   # Fetch ecosystems by default. As an optimization, skip when rendering page
   # fragments.
@@ -195,6 +213,7 @@ def bug_to_response(bug, detailed=True):
       'isFixed': bug.is_fixed,
       'invalid': bug.status == osv.BugStatus.INVALID
   })
+  print(response)
 
   if detailed:
     add_links(response)
@@ -334,13 +353,20 @@ def osv_get_ecosystem_counts():
   return filtered_counts
 
 
-def osv_query(search_string, page, affected_only, ecosystem):
-  """Run an OSV query."""
+def osv_project_query(search_string: str, page: int, page_size: int,
+                      affected_only: bool, ecosystem: str):
   query = osv.Bug.query(osv.Bug.status == osv.BugStatus.PROCESSED,
                         osv.Bug.public == True)  # pylint: disable=singleton-comparison
 
   if search_string:
-    query = query.filter(osv.Bug.search_indices == search_string.lower())
+    lower_search_str = search_string.lower()
+    query = query.filter(osv.Bug.project >= lower_search_str)
+    lower_search_str_inc = lower_search_str[:-1] + chr(
+        ord(lower_search_str[-1]) + 1)
+    query = query.filter(osv.Bug.project < lower_search_str_inc)
+    query.distinct_on = ["project"]
+
+  query.projection = ["project"]
 
   if affected_only:
     query = query.filter(osv.Bug.has_affected == True)  # pylint: disable=singleton-comparison
@@ -348,7 +374,50 @@ def osv_query(search_string, page, affected_only, ecosystem):
   if ecosystem:
     query = query.filter(osv.Bug.ecosystem == ecosystem)
 
-  query = query.order(-osv.Bug.last_modified)
+  # total = query.count()
+  results = {
+      # 'total': total,
+      'items': [],
+      'projects': [],
+  }
+
+  bugs, _, _ = query.fetch_page(
+      page_size=page_size, offset=(page - 1) * page_size)
+
+  project_count_future = []
+
+  for bug in bugs:
+    project_count_future.append(
+        osv.Bug.query(osv.Bug.project == bug.project[0]).count_async())
+
+  ndb.Future.wait_all(project_count_future)
+
+  for i, bug in enumerate(bugs):
+    results['projects'].append((bug, project_count_future[i].get_result()))
+
+  return results
+
+
+def osv_query(search_string: str, page: int, page_size: int,
+              affected_only: bool, ecosystem: str):
+  """Run an OSV query."""
+  query = osv.Bug.query(osv.Bug.status == osv.BugStatus.PROCESSED,
+                        osv.Bug.public == True)  # pylint: disable=singleton-comparison
+
+  if search_string:
+    lower_search_str = search_string.lower()
+    query = query.filter(osv.Bug.search_indices >= lower_search_str)
+    lower_search_str_inc = lower_search_str[:-1] + chr(
+        ord(lower_search_str[-1]) + 1)
+    query = query.filter(osv.Bug.search_indices < lower_search_str_inc)
+
+  if affected_only:
+    query = query.filter(osv.Bug.has_affected == True)  # pylint: disable=singleton-comparison
+
+  if ecosystem:
+    query = query.filter(osv.Bug.ecosystem == ecosystem)
+
+  # query = query.order(-osv.Bug.last_modified)
   total = query.count()
   results = {
       'total': total,
@@ -356,7 +425,7 @@ def osv_query(search_string, page, affected_only, ecosystem):
   }
 
   bugs, _, _ = query.fetch_page(
-      page_size=_PAGE_SIZE, offset=(page - 1) * _PAGE_SIZE)
+      page_size=page_size, offset=(page - 1) * page_size)
   for bug in bugs:
     results['items'].append(bug_to_response(bug, detailed=False))
 

@@ -118,6 +118,18 @@ indexes:
     properties:
       - name: status
       - name: public
+      - name: search_indices
+
+  - kind: Bug
+    properties:
+      - name: public
+      - name: status
+      - name: project
+
+  - kind: Bug
+    properties:
+      - name: status
+      - name: public
       - name: has_affected
       - name: last_modified
         direction: desc

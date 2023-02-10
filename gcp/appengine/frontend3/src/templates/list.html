@@ -34,11 +34,14 @@ data-column-id="{{ column_id }}"
     <div class="mdc-layout-grid__cell--span-12">
       <h1 class="title">Vulnerability Library</h1>
       <div class="search">
-        <form action="{{ url_for('frontend_handlers.list_vulnerabilities') }}" data-turbo-frame="vulnerability-table">
+        <form action="{{ url_for('frontend_handlers.list_vulnerabilities_autocomplete') }}" data-turbo-frame="search_results">
           <div class="mdc-layout-grid__inner">
             <div class="query-container mdc-layout-grid__cell--span-8">
-              <mwc-icon class="search-icon">search</mwc-icon>
-              <mwc-textfield-with-enter label="Package or ID search" icon="a" class="query-field" name="q" value="{{ query }}"></mwc-textfield-with-enter>
+              <div class="relative">
+                <mwc-icon class="search-icon">search</mwc-icon>
+                <mwc-textfield-with-enter label="Package or ID search" icon="a" class="query-field" name="q" value="{{ query }}"></mwc-textfield-with-enter>
+              </div>
+              <turbo-frame id="search_results" target="_top"></turbo-frame>
             </div>
           </div>
           <submit-radios>

@@ -1,0 +1,13 @@
+<turbo-frame id="search_results">
+    <div class="search_result_box mdc-layout-grid__cell--span-8">
+        <div class="suggestion-grid">
+            <h2 style="grid-column-start: 2;">Results</h2>
+        </div>
+
+        <ul role="listbox" data-combobox-target="list">
+            {% for proj in projects %}
+            <li>{{ proj }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+</turbo-frame>

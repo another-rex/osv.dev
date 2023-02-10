@@ -49,7 +49,8 @@ def create_app():
       __name__, template_folder='dist', static_folder='dist/static')
   flask_app.register_blueprint(handlers.blueprint)
   flask_app.register_blueprint(frontend_handlers.blueprint)
-  flask_app.config["TEMPLATES_AUTO_RELOAD"] = True
+  flask_app.config['TEMPLATES_AUTO_RELOAD'] = True
+  flask_app.config['EXPLAIN_TEMPLATE_LOADING'] = True
 
   return flask_app
 

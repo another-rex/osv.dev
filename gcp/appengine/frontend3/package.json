@@ -21,7 +21,8 @@
     "@material/theme": "13.0.0",
     "highlight.js": "11.7.0",
     "lit": "2.6.1",
-    "spicy-sections": "git+https://github.com/tabvengers/spicy-sections.git#c3aae99dbf1e627cdf03a35c913d7f6e970de22b"
+    "spicy-sections": "git+https://github.com/tabvengers/spicy-sections.git#c3aae99dbf1e627cdf03a35c913d7f6e970de22b",
+    "throttle-debounce": "^5.0.0"
   },
   "devDependencies": {
     "copy-webpack-plugin": "10.2.4",
