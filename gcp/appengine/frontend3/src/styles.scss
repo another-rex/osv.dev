@@ -339,6 +339,10 @@ pre {
   .search input[type=submit] {
     display: none;
   }
+
+  #autocomplete_input {
+    display: none;
+  }
 }
 
 .query-container {
@@ -348,14 +352,21 @@ pre {
   --mdc-text-field-fill-color: rgba(255, 255, 255, 0.3);
   --mdc-text-field-label-ink-color: $osv-text-color;
 
-  .search_result_box {
+  .search-result-box-inner {
     background-color: #80868b;
     padding: 20px;
     .suggestion-grid {
       display: grid;
-      gap: 5px;
-      grid-template-columns: 50px 1fr;
+      gap: 10px;
+      grid-template-columns: 30px 1fr;
+      font-size: 17px;
+      .source-icon {
+        display: flex;
+        justify-content: center;
+      }
     }
+
+    
   }
 
   // Make the inner search field full-width.
@@ -1213,4 +1224,8 @@ dl.vulnerability-details,
       margin-bottom: 16px;
     }
   }
+}
+
+.hidden {
+  display: none;
 }

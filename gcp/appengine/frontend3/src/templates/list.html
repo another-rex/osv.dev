@@ -34,14 +34,18 @@ data-column-id="{{ column_id }}"
     <div class="mdc-layout-grid__cell--span-12">
       <h1 class="title">Vulnerability Library</h1>
       <div class="search">
-        <form action="{{ url_for('frontend_handlers.list_vulnerabilities_autocomplete') }}" data-turbo-frame="search_results">
+        <form action="{{ url_for('frontend_handlers.list_vulnerabilities_autocomplete') }}" data-turbo-frame="search-result-box">
+          <input type="search" name="q" id="autocomplete_input">
+          <input type="submit" id="autocomplete_btn">
+        </form>
+        <form action="{{ url_for('frontend_handlers.list_vulnerabilities') }}" data-turbo-frame="vulnerability-table" id="search-form">
           <div class="mdc-layout-grid__inner">
             <div class="query-container mdc-layout-grid__cell--span-8">
               <div class="relative">
                 <mwc-icon class="search-icon">search</mwc-icon>
-                <mwc-textfield-with-enter label="Package or ID search" icon="a" class="query-field" name="q" value="{{ query }}"></mwc-textfield-with-enter>
+                <mwc-textfield-with-enter label="Package or ID search" icon="a" class="query-field" name="q" value="{{ query }}" autoComplete="off"></mwc-textfield-with-enter>
               </div>
-              <turbo-frame id="search_results" target="_top"></turbo-frame>
+              <turbo-frame id="search-result-box"></turbo-frame>
             </div>
           </div>
           <submit-radios>
@@ -69,7 +73,9 @@ data-column-id="{{ column_id }}"
               </spicy-sections>
             {% endif %}
           </submit-radios>
-          <input type="submit">
+          <!-- Default button to search -->
+          <input id="query-search-btn" type="submit">
+          <!-- Autocomplete button clicked by JS when typing -->
         </form>
       </div>
     </div>

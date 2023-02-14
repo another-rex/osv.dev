@@ -136,19 +136,27 @@ def about():
 
 @blueprint.route('/list-autocomplete')
 def list_vulnerabilities_autocomplete():
-  is_turbo_frame = request.headers.get('Turbo-Frame')
-  # Remove page parameter if not from turbo frame
-  if not is_turbo_frame:
-    return abort(400)
-
   query = request.args.get('q', '')
-  ecosystem = request.args.get('ecosystem')
-  results = osv_project_query(query, 1, 10, False, ecosystem)
+  ecosystem = request.args.get('ecosystem', '')
+
+  is_turbo_frame = request.headers.get('Turbo-Frame')
+  # Redirect back to main page if not a turbo frame
+  # This should happen very rarely
+  if not is_turbo_frame:
+    return redirect('/list?ecosystem=' + ecosystem, code=302)
+
+  if (len(query) < 2):
+    return render_template('search_box.html')
+
+  results = osv_autocomplete_query(query, 5, False, ecosystem)
 
   return render_template(
       'search_box.html',
+      query=query,
+      ecosystem=ecosystem,
       vulnerabilities=results['items'],
-      projects=results['projects'])
+      projects=results['projects'],
+  )
 
 
 @blueprint.route('/list')
@@ -353,26 +361,42 @@ def osv_get_ecosystem_counts():
   return filtered_counts
 
 
-def osv_project_query(search_string: str, page: int, page_size: int,
-                      affected_only: bool, ecosystem: str):
-  query = osv.Bug.query(osv.Bug.status == osv.BugStatus.PROCESSED,
-                        osv.Bug.public == True)  # pylint: disable=singleton-comparison
+def osv_autocomplete_query(search_string: str, page_size: int,
+                           affected_only: bool, ecosystem: str):
+
+  project_query = osv.Bug.query(osv.Bug.status == osv.BugStatus.PROCESSED,
+                                osv.Bug.public == True)  # pylint: disable=singleton-comparison
+
+  id_query = osv.Bug.query(osv.Bug.status == osv.BugStatus.PROCESSED,
+                           osv.Bug.public == True)
 
   if search_string:
     lower_search_str = search_string.lower()
-    query = query.filter(osv.Bug.project >= lower_search_str)
     lower_search_str_inc = lower_search_str[:-1] + chr(
         ord(lower_search_str[-1]) + 1)
-    query = query.filter(osv.Bug.project < lower_search_str_inc)
-    query.distinct_on = ["project"]
 
-  query.projection = ["project"]
+    # Build project query
+    project_query = project_query.filter(osv.Bug.project >= lower_search_str)
+
+    project_query = project_query.filter(osv.Bug.project < lower_search_str_inc)
+
+    project_query.distinct_on = ["project"]
+    project_query.projection = ["project"]
+
+    id_query = id_query.filter(osv.Bug.search_indices >= lower_search_str)
+    id_query = id_query.filter(osv.Bug.search_indices < lower_search_str_inc)
+
+    # id_query = id_query.order(-osv.Bug.search_indices)
+
+    # search_indices_query.projection = ["ecosystem"]
 
   if affected_only:
-    query = query.filter(osv.Bug.has_affected == True)  # pylint: disable=singleton-comparison
+    project_query = project_query.filter(osv.Bug.has_affected == True)  # pylint: disable=singleton-comparison
+    id_query = id_query.filter(osv.Bug.has_affected == True)  # pylint: disable=singleton-comparison
 
   if ecosystem:
-    query = query.filter(osv.Bug.ecosystem == ecosystem)
+    project_query = project_query.filter(osv.Bug.ecosystem == ecosystem)
+    id_query = id_query.filter(osv.Bug.ecosystem == ecosystem)
 
   # total = query.count()
   results = {
@@ -381,8 +405,8 @@ def osv_project_query(search_string: str, page: int, page_size: int,
       'projects': [],
   }
 
-  bugs, _, _ = query.fetch_page(
-      page_size=page_size, offset=(page - 1) * page_size)
+  bugs_search_idx = id_query.fetch_page_async(page_size=page_size)
+  bugs = project_query.fetch()
 
   project_count_future = []
 
@@ -395,6 +419,13 @@ def osv_project_query(search_string: str, page: int, page_size: int,
   for i, bug in enumerate(bugs):
     results['projects'].append((bug, project_count_future[i].get_result()))
 
+  results['projects'].sort(key=lambda x: -x[1])
+  results['projects'] = results['projects'][:page_size]
+
+  bug_se, _, _ = bugs_search_idx.get_result()
+  for bug_s in bug_se:
+    results['items'].append(bug_s)
+
   return results
 
 
@@ -405,11 +436,8 @@ def osv_query(search_string: str, page: int, page_size: int,
                         osv.Bug.public == True)  # pylint: disable=singleton-comparison
 
   if search_string:
-    lower_search_str = search_string.lower()
-    query = query.filter(osv.Bug.search_indices >= lower_search_str)
-    lower_search_str_inc = lower_search_str[:-1] + chr(
-        ord(lower_search_str[-1]) + 1)
-    query = query.filter(osv.Bug.search_indices < lower_search_str_inc)
+    query = query.filter(
+        osv.Bug.search_indices == search_string.lower().strip('-'))
 
   if affected_only:
     query = query.filter(osv.Bug.has_affected == True)  # pylint: disable=singleton-comparison
@@ -417,7 +445,7 @@ def osv_query(search_string: str, page: int, page_size: int,
   if ecosystem:
     query = query.filter(osv.Bug.ecosystem == ecosystem)
 
-  # query = query.order(-osv.Bug.last_modified)
+  query = query.order(-osv.Bug.last_modified)
   total = query.count()
   results = {
       'total': total,

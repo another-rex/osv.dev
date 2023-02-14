@@ -1,13 +1,27 @@
-<turbo-frame id="search_results">
-    <div class="search_result_box mdc-layout-grid__cell--span-8">
-        <div class="suggestion-grid">
-            <h2 style="grid-column-start: 2;">Results</h2>
-        </div>
-
-        <ul role="listbox" data-combobox-target="list">
-            {% for proj in projects %}
-            <li>{{ proj }}</li>
-            {% endfor %}
-        </ul>
+<turbo-frame id="search-result-box">
+  <div class="search-result-box-inner" class="mdc-layout-grid__cell--span-8">
+    {% if projects or vulnerabilities %}
+    <div class="suggestion-grid">
+      {% if projects %}
+      <h2 style="grid-column-start: 2;">Top Packages</h2>
+      {% endif %}
+      {% for proj in projects %}
+      <mwc-icon class="source-icon">source</mwc-icon>
+      <!-- Use javascript to submit search form rather than an input because we have to update the search box -->
+      <!-- TODO: Project/package only search (e.g. "package:alpine") to avoid showing results found by other indices -->
+      <div><a href="#" onclick="autocompleteClick('{{ proj[0].project[0] }}')">{{ proj[0].project[0] }}</a> <i>{{
+          proj[1] }} Vulnerabilities</i></div>
+      {% endfor %}
+      {% if vulnerabilities %}
+      <h2 style="grid-column-start: 2;">Vulnerability IDs</h2>
+      {% endif %}
+      {% for vuln in vulnerabilities %}
+      <mwc-icon class="source-icon">bug_report</mwc-icon>
+      <div><a href="#" onclick="autocompleteClick('{{ vuln.id() }}')">{{ vuln.id() }}</a> <i>{{ vuln.ecosystem }}</i></div>
+      {% endfor %}
     </div>
-</turbo-frame>
+    {% else %}
+      <h2>No Results</h2>
+    {% endif %}
+  </div>
+  <turbo-frame>

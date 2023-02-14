@@ -13,6 +13,47 @@ import hljs from 'highlight.js';
 // TODO: raw-loader is deprecated.
 import hljsStyles from '!!raw-loader!highlight.js/styles/github-dark.css';
 
+import { throttle } from "throttle-debounce";
+
+const queryField = document.querySelector('.query-field');
+const searchForm = document.querySelector('#search-form');
+const querySearchBtn = document.querySelector('#query-search-btn');
+const queryAutocompleteForm = document.querySelector('#autocomplete_btn');
+const queryAutocompleteField = document.querySelector('#autocomplete_input');
+if (queryField) {
+  const throttled_query_submit = throttle(500, () => {
+    queryAutocompleteField.value = queryField.value;
+    if (queryAutocompleteField.value.length < 2) {
+      hideSearchBox();
+      return;
+    }
+
+    queryAutocompleteForm.click();
+  });
+  queryField.addEventListener('input', (ev) => {
+    throttled_query_submit();
+  });
+}
+
+searchForm.addEventListener('submit', () => {
+  hideSearchBox();
+});
+
+function hideSearchBox() {
+  let box = document.querySelector('.search-result-box-inner');
+  if (box) {
+    box.classList.add('hidden');
+  }
+}
+
+window.autocompleteClick = function(autocompleteValue) {
+  if (queryField) {
+    queryField.value = autocompleteValue;
+    querySearchBtn.click();
+    hideSearchBox();
+  }
+}
+
 // Submits a form in a way such that Turbo can intercept the event.
 // Triggering submit on the form directly would still give a correct resulting
 // page, but we want to let Turbo speed up renders as intended.

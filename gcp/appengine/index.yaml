@@ -119,6 +119,7 @@ indexes:
       - name: status
       - name: public
       - name: search_indices
+        direction: desc
 
   - kind: Bug
     properties:
