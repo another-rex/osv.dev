@@ -17,7 +17,7 @@
       {% endif %}
       {% for vuln in vulnerabilities %}
       <mwc-icon class="source-icon">bug_report</mwc-icon>
-      <div><a href="#" onclick="autocompleteClick('{{ vuln.id() }}')">{{ vuln.id() }}</a> <i>{{ vuln.ecosystem }}</i></div>
+      <div><a href="#" onclick="autocompleteClick('{{ vuln.id() }}')">{{ vuln.id() }}</a> <i>{{ vuln.ecosystem[0] }}</i></div>
       {% endfor %}
     </div>
     {% else %}

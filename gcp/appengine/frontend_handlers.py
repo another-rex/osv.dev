@@ -386,9 +386,7 @@ def osv_autocomplete_query(search_string: str, page_size: int,
     id_query = id_query.filter(osv.Bug.search_indices >= lower_search_str)
     id_query = id_query.filter(osv.Bug.search_indices < lower_search_str_inc)
 
-    # id_query = id_query.order(-osv.Bug.search_indices)
-
-    # search_indices_query.projection = ["ecosystem"]
+    id_query = id_query.order(-osv.Bug.search_indices)
 
   if affected_only:
     project_query = project_query.filter(osv.Bug.has_affected == True)  # pylint: disable=singleton-comparison
