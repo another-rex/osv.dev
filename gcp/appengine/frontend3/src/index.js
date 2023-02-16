@@ -33,16 +33,16 @@ if (queryField) {
   queryField.addEventListener('input', (ev) => {
     throttled_query_submit();
   });
-}
 
-searchForm.addEventListener('submit', () => {
-  hideSearchBox();
-});
+  searchForm.addEventListener('submit', () => {
+    hideSearchBox();
+  });
 
-function hideSearchBox() {
-  let box = document.querySelector('.search-result-box-inner');
-  if (box) {
-    box.classList.add('hidden');
+  function hideSearchBox() {
+    let box = document.querySelector('.search-result-box-inner');
+    if (box) {
+      box.classList.add('hidden');
+    }
   }
 }
 
