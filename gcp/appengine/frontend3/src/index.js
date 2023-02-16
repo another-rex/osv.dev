@@ -16,11 +16,12 @@ import hljsStyles from '!!raw-loader!highlight.js/styles/github-dark.css';
 import { throttle } from "throttle-debounce";
 
 const queryField = document.querySelector('.query-field');
-const searchForm = document.querySelector('#search-form');
-const querySearchBtn = document.querySelector('#query-search-btn');
-const queryAutocompleteForm = document.querySelector('#autocomplete_btn');
-const queryAutocompleteField = document.querySelector('#autocomplete_input');
-if (queryField) {
+if (queryField) { // If we are in the list page
+  const searchForm = document.querySelector('#search-form');
+  const querySearchBtn = document.querySelector('#query-search-btn');
+  const queryAutocompleteForm = document.querySelector('#autocomplete_btn');
+  const queryAutocompleteField = document.querySelector('#autocomplete_input');
+
   const throttled_query_submit = throttle(500, () => {
     queryAutocompleteField.value = queryField.value;
     if (queryAutocompleteField.value.length < 2) {
@@ -44,13 +45,13 @@ if (queryField) {
       box.classList.add('hidden');
     }
   }
-}
 
-window.autocompleteClick = function(autocompleteValue) {
-  if (queryField) {
-    queryField.value = autocompleteValue;
-    querySearchBtn.click();
-    hideSearchBox();
+  window.autocompleteClick = function (autocompleteValue) {
+    if (queryField) {
+      queryField.value = autocompleteValue;
+      querySearchBtn.click();
+      hideSearchBox();
+    }
   }
 }
 
