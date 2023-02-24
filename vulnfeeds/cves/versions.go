@@ -22,10 +22,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/config"
-	"github.com/go-git/go-git/v5/plumbing/transport"
-	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/knqyf263/go-cpe/naming"
 	"golang.org/x/exp/slices"
 )
@@ -36,8 +32,9 @@ type FixCommit struct {
 }
 
 type AffectedVersion struct {
-	Introduced string
-	Fixed      string
+	Introduced   string
+	Fixed        string
+	LastAffected string
 }
 
 type VersionInfo struct {
@@ -266,26 +263,6 @@ func Commit(u string) (string, error) {
 	return "", fmt.Errorf("Commit(): unsupported URL: %s", u)
 }
 
-// Validate the repo by attempting to query it's references.
-func ValidRepo(u string) (valid bool, e error) {
-	remoteConfig := &config.RemoteConfig{
-		Name: "source",
-		URLs: []string{
-			u,
-		},
-	}
-	r := git.NewRemote(memory.NewStorage(), remoteConfig)
-	_, err := r.List(&git.ListOptions{})
-	if err != nil && err == transport.ErrAuthenticationRequired {
-		// somewhat strangely, we get an authentication prompt via Git on non-existent repos.
-		return false, nil
-	}
-	if err != nil {
-		return false, nil
-	}
-	return true, nil
-}
-
 // For URLs referencing commits in supported Git repository hosts, return a FixCommit.
 func extractGitCommit(link string) *FixCommit {
 	r, err := Repo(link)
@@ -417,6 +394,7 @@ func ExtractVersionInfo(cve CVEItem, validVersions []string) (v VersionInfo, not
 
 			introduced := ""
 			fixed := ""
+			lastaffected := ""
 			if match.VersionStartIncluding != "" {
 				introduced = cleanVersion(match.VersionStartIncluding)
 			} else if match.VersionStartExcluding != "" {
@@ -431,9 +409,13 @@ func ExtractVersionInfo(cve CVEItem, validVersions []string) (v VersionInfo, not
 				fixed = cleanVersion(match.VersionEndExcluding)
 			} else if match.VersionEndIncluding != "" {
 				var err error
+				// Infer the fixed version from the next version after.
 				fixed, err = nextVersion(validVersions, cleanVersion(match.VersionEndIncluding))
 				if err != nil {
 					notes = append(notes, err.Error())
+					// if that inference failed, we know this version was definitely still vulnerable.
+					lastaffected = cleanVersion(match.VersionEndIncluding)
+					notes = append(notes, fmt.Sprintf("Using %s as last_affected version instead", cleanVersion(match.VersionEndIncluding)))
 				}
 			}
 
@@ -451,8 +433,9 @@ func ExtractVersionInfo(cve CVEItem, validVersions []string) (v VersionInfo, not
 
 			gotVersions = true
 			v.AffectedVersions = append(v.AffectedVersions, AffectedVersion{
-				Introduced: introduced,
-				Fixed:      fixed,
+				Introduced:   introduced,
+				Fixed:        fixed,
+				LastAffected: lastaffected,
 			})
 		}
 	}
@@ -460,7 +443,9 @@ func ExtractVersionInfo(cve CVEItem, validVersions []string) (v VersionInfo, not
 		var extractNotes []string
 		v.AffectedVersions, extractNotes = extractVersionsFromDescription(validVersions, EnglishDescription(cve.CVE))
 		notes = append(notes, extractNotes...)
-		log.Printf("Extracted versions from description = %+v", v.AffectedVersions)
+		if len(v.AffectedVersions) > 0 {
+			log.Printf("[%s] Extracted versions from description = %+v", cve.CVE.CVEDataMeta.ID, v.AffectedVersions)
+		}
 	}
 
 	if len(v.AffectedVersions) == 0 {
@@ -519,4 +504,23 @@ func ParseCPE(formattedString string) (*CPE, error) {
 		TargetSW:   wfn.GetString("target_sw"),
 		TargetHW:   wfn.GetString("target_hw"),
 		Other:      wfn.GetString("other")}, nil
+}
+
+// Normalize version strings found in CVE CPE Match data or Git tags.
+// Use the same logic and behaviour as normalize_tag() osv/bug.py for consistency.
+func Normalize(version string) (normalizedVersion string, e error) {
+	// Keep in sync with the intent of https://github.com/google/osv.dev/blob/26050deb42785bc5a4dc7d802eac8e7f95135509/osv/bug.py#L31
+	var validVersion = regexp.MustCompile(`(?i)(\d+|(?:rc|alpha|beta|preview)\d*)`)
+	var validVersionText = regexp.MustCompile(`(?i)(?:rc|alpha|beta|preview)\d*`)
+	components := validVersion.FindAllString(version, -1)
+	if components == nil {
+		return "", fmt.Errorf("%q is not a supported version", version)
+	}
+	// If the very first component happens to accidentally match the strings we support, remove it.
+	// This is necessary because of the lack of negative lookbehind assertion support in RE2.
+	if validVersionText.MatchString(components[0]) {
+		components = slices.Delete(components, 0, 1)
+	}
+	normalizedVersion = strings.Join(components, "-")
+	return normalizedVersion, e
 }
