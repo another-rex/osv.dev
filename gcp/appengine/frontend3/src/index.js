@@ -20,10 +20,14 @@ if (queryField) { // If we are in the list page
   const searchForm = document.querySelector('#search-form');
   const querySearchBtn = document.querySelector('#query-search-btn');
   const queryAutocompleteForm = document.querySelector('#autocomplete_btn');
-  const queryAutocompleteField = document.querySelector('#autocomplete_input');
+  const searchResultBox = document.querySelector('#search-result-box');
+  const queryAutocompleteField = document.querySelector('#query-ac-input');
+  const ecosystemAutocompleteField = document.querySelector('#ecosystem-ac-input');
 
   const throttled_query_submit = throttle(500, () => {
     queryAutocompleteField.value = queryField.value;
+    const ecosystemRadio = document.querySelector('input[name=ecosystem]:checked');
+    ecosystemAutocompleteField.value = ecosystemRadio.value || "";
     if (queryAutocompleteField.value.length < 2) {
       hideSearchBox();
       return;
@@ -53,6 +57,17 @@ if (queryField) { // If we are in the list page
       hideSearchBox();
     }
   }
+
+  const observer = new MutationObserver(() => {
+    // Search box result arrived, check if search box still needs to be hidden
+    // This can happen if the results for another query arrive after 
+    // queryAutocompleteField goes below length 2
+    if (queryAutocompleteField.value.length < 2) {
+      hideSearchBox();
+    }
+  });
+
+  observer.observe(searchResultBox, {childList: true});
 }
 
 // Submits a form in a way such that Turbo can intercept the event.

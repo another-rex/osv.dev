@@ -118,6 +118,7 @@ indexes:
     properties:
       - name: status
       - name: public
+      - name: ecosystem
       - name: search_indices
         direction: desc
 
@@ -126,6 +127,7 @@ indexes:
       - name: public
       - name: status
       - name: project
+      - name: ecosystem
 
   - kind: Bug
     properties:

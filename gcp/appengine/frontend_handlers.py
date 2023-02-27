@@ -17,6 +17,8 @@ import json
 import os
 import math
 import re
+import types
+import typing
 
 from flask import abort
 from flask import current_app
@@ -370,23 +372,25 @@ def osv_autocomplete_query(search_string: str, page_size: int,
   id_query = osv.Bug.query(osv.Bug.status == osv.BugStatus.PROCESSED,
                            osv.Bug.public == True)
 
-  if search_string:
-    lower_search_str = search_string.lower()
-    lower_search_str_inc = lower_search_str[:-1] + chr(
-        ord(lower_search_str[-1]) + 1)
+  if not search_string:
+    raise ValueError("search_string is empty or none")
 
-    # Build project query
-    project_query = project_query.filter(osv.Bug.project >= lower_search_str)
+  lower_search_str = search_string.lower()
+  lower_search_str_inc = lower_search_str[:-1] + chr(
+      ord(lower_search_str[-1]) + 1)
 
-    project_query = project_query.filter(osv.Bug.project < lower_search_str_inc)
+  # Build query for the package name
+  project_query = project_query.filter(osv.Bug.project >= lower_search_str)
+  project_query = project_query.filter(osv.Bug.project < lower_search_str_inc)
 
-    project_query.distinct_on = ["project"]
-    project_query.projection = ["project"]
+  project_query.distinct_on = ["project", "ecosystem"]
+  project_query.projection = ["project", "ecosystem"]
 
-    id_query = id_query.filter(osv.Bug.search_indices >= lower_search_str)
-    id_query = id_query.filter(osv.Bug.search_indices < lower_search_str_inc)
+  # Build query for the vulnerability IDs
+  id_query = id_query.filter(osv.Bug.search_indices >= lower_search_str)
+  id_query = id_query.filter(osv.Bug.search_indices < lower_search_str_inc)
 
-    id_query = id_query.order(-osv.Bug.search_indices)
+  id_query = id_query.order(-osv.Bug.search_indices)
 
   if affected_only:
     project_query = project_query.filter(osv.Bug.has_affected == True)  # pylint: disable=singleton-comparison
@@ -395,34 +399,56 @@ def osv_autocomplete_query(search_string: str, page_size: int,
   if ecosystem:
     project_query = project_query.filter(osv.Bug.ecosystem == ecosystem)
     id_query = id_query.filter(osv.Bug.ecosystem == ecosystem)
+    # Don't do distinct or projection on ecosystem,
+    # since ecosystem will be exactly one value now (and is not supported by datastore)
+    project_query.projection = ["project"]
+    project_query.distinct_on = ["project"]
 
-  # total = query.count()
   results = {
-      # 'total': total,
       'items': [],
       'projects': [],
   }
 
-  bugs_search_idx = id_query.fetch_page_async(page_size=page_size)
+  bugs_search_idx: ndb.Future = id_query.fetch_page_async(page_size=page_size)
   bugs = project_query.fetch()
 
-  project_count_future = []
+  project_query_results: typing.List[types.SimpleNamespace] = []
 
   for bug in bugs:
-    project_count_future.append(
-        osv.Bug.query(osv.Bug.project == bug.project[0]).count_async())
+    entry = types.SimpleNamespace()
+    if ecosystem:
+      entry.ecosystem = ecosystem
+    else:
+      entry.ecosystem = bug.ecosystem[0]
+    entry.project = bug.project[0]
+    project_query_results.append(entry)
 
-  ndb.Future.wait_all(project_count_future)
+  # Unique on the first ecosystem entry, for ecosystems with sub ecosystems (e.g. Alpine:3.8)
+  # the first ecosystem will always be the overall ecosystem (e.g. Alpine)
+  seen = set()
+  project_query_results = [
+      seen.add(bug.ecosystem) or bug
+      for bug in project_query_results
+      if bug.ecosystem not in seen
+  ]
 
-  for i, bug in enumerate(bugs):
-    results['projects'].append((bug, project_count_future[i].get_result()))
+  project_count_futures: typing.List[ndb.Future] = []
+  for bug in project_query_results:
+    project_count_futures.append(
+        osv.Bug.query(osv.Bug.project == bug.project,
+                      osv.Bug.ecosystem == bug.ecosystem).count_async())
 
-  results['projects'].sort(key=lambda x: -x[1])
+  ndb.Future.wait_all(project_count_futures)
+
+  for bug, future in zip(project_query_results, project_count_futures):
+    bug.count = future.get_result()
+    results['projects'].append(bug)
+
+  # Sort descending by number of vulnerabilities
+  results['projects'].sort(key=lambda x: -x.count)
   results['projects'] = results['projects'][:page_size]
 
-  bug_se, _, _ = bugs_search_idx.get_result()
-  for bug_s in bug_se:
-    results['items'].append(bug_s)
+  results['items'], _, _ = bugs_search_idx.get_result()
 
   return results
 

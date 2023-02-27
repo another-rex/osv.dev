@@ -9,15 +9,15 @@
       <mwc-icon class="source-icon">source</mwc-icon>
       <!-- Use javascript to submit search form rather than an input because we have to update the search box -->
       <!-- TODO: Project/package only search (e.g. "package:alpine") to avoid showing results found by other indices -->
-      <div><a href="#" onclick="autocompleteClick('{{ proj[0].project[0] }}')">{{ proj[0].project[0] }}</a> <i>{{
-          proj[1] }} Vulnerabilities</i></div>
+      <div><a href="#" onclick="autocompleteClick('{{ proj.project }}')">{{ proj.project }}</a> <i>{{
+          proj.count }} Vulnerabilities</i> - {{proj.ecosystem }}</div>
       {% endfor %}
       {% if vulnerabilities %}
       <h2 style="grid-column-start: 2;">Vulnerability IDs</h2>
       {% endif %}
       {% for vuln in vulnerabilities %}
       <mwc-icon class="source-icon">bug_report</mwc-icon>
-      <div><a href="#" onclick="autocompleteClick('{{ vuln.id() }}')">{{ vuln.id() }}</a> <i>{{ vuln.ecosystem[0] }}</i></div>
+      <div><a href="#" onclick="autocompleteClick('{{ vuln.id() }}')">{{ vuln.id() }}</a> <i>{{ vuln.ecosystem[0] }}</i> - {{vuln.project[0]}}</div>
       {% endfor %}
     </div>
     {% else %}
