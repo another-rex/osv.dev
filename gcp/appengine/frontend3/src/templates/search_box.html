@@ -1,27 +1,37 @@
 <turbo-frame id="search-result-box">
   <div class="search-result-box-inner" class="mdc-layout-grid__cell--span-8">
     {% if projects or vulnerabilities %}
-    <div class="suggestion-grid">
+    <div>
       {% if projects %}
-      <h2 style="grid-column-start: 2;">Top Packages</h2>
+      <div class="suggestion-grid-row heading">
+        <h2 style="grid-column-start: 2; grid-column-end: 5">Top Packages</h2>
+      </div>
       {% endif %}
       {% for proj in projects %}
-      <mwc-icon class="source-icon">source</mwc-icon>
-      <!-- Use javascript to submit search form rather than an input because we have to update the search box -->
-      <!-- TODO: Project/package only search (e.g. "package:alpine") to avoid showing results found by other indices -->
-      <div><a href="#" onclick="autocompleteClick('{{ proj.project }}')">{{ proj.project }}</a> <i>{{
-          proj.count }} Vulnerabilities</i> - {{proj.ecosystem }}</div>
+      <div class="suggestion-grid-row">
+        <mwc-icon class="source-icon">source</mwc-icon>
+        <!-- Use javascript to submit search form rather than an input because we have to update the search box -->
+        <span><a href="#" onclick="autocompleteClick('{{ proj.project }}')">{{ proj.project }}</a></span>
+        <span><i>Vulnerability Count: {{ proj.count }}</i></span>
+        <span><b>{{ proj.ecosystem }}</b></span>
+      </div>
       {% endfor %}
       {% if vulnerabilities %}
-      <h2 style="grid-column-start: 2;">Vulnerability IDs</h2>
+      <div class="suggestion-grid-row heading">
+        <h2 style="grid-column-start: 2; grid-column-end: 5;">Vulnerability IDs</h2>
+      </div>
       {% endif %}
       {% for vuln in vulnerabilities %}
-      <mwc-icon class="source-icon">bug_report</mwc-icon>
-      <div><a href="#" onclick="autocompleteClick('{{ vuln.id() }}')">{{ vuln.id() }}</a> <i>{{ vuln.ecosystem[0] }}</i> - {{vuln.project[0]}}</div>
+      <div class="suggestion-grid-row">
+        <mwc-icon class="source-icon">bug_report</mwc-icon>
+        <span><a href="#" onclick="autocompleteClick('{{ vuln.id() }}')">{{ vuln.id() }}</a></span>
+        <span><i>{{vuln.project[0]}}</i></span>
+        <span><b>{{ vuln.ecosystem[0] }}</b></span>
+      </div>
       {% endfor %}
     </div>
     {% else %}
-      <h2>No Results</h2>
+    <h2>No Results</h2>
     {% endif %}
   </div>
   <turbo-frame>

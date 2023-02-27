@@ -379,14 +379,25 @@ pre {
 
     .search-result-box-inner {
       background-color: #80868b;
-      padding: 20px;
+      // padding: 20px;
+      // padding-top: 10px;
       border-top: $osv-text-color solid 2px;
 
-      .suggestion-grid {
+      .suggestion-grid-row {
         display: grid;
         gap: 10px;
-        grid-template-columns: 30px 1fr;
+        grid-template-columns: 30px 1fr 1fr 1fr;
         font-size: 17px;
+        padding: 10px;
+
+        &:hover {
+          background-color: #6f7478;
+          cursor: pointer;
+        }
+
+        &.heading:hover {
+          background-color: inherit;
+        }
 
         .source-icon {
           display: flex;
