@@ -419,7 +419,7 @@ def osv_autocomplete_query(search_string: str, page_size: int,
     if ecosystem:
       entry.ecosystem = ecosystem
     else:
-      entry.ecosystem = bug.ecosystem[0]
+      entry.ecosystem = osv.impact.ecosystems.normalize(bug.ecosystem[0])
     entry.project = bug.project[0]
     project_query_results.append(entry)
 

@@ -358,13 +358,14 @@ pre {
 
 }
 
-.autocomplete-form {
+#autocomplete-form {
   display: none;
 }
 
 .query-container-outer {
   margin-top: 22px;
   position: relative;
+  max-width: 1000px;
   // Make query-container absolute to float on top
   .query-container {
     position: absolute;
@@ -376,11 +377,10 @@ pre {
     border-radius: 8px;
     --mdc-text-field-fill-color: rgba(255, 255, 255, 0.3);
     --mdc-text-field-label-ink-color: $osv-text-color;
-
+    
     .search-result-box-inner {
       background-color: #80868b;
-      // padding: 20px;
-      // padding-top: 10px;
+      padding: 10px 0;
       border-top: $osv-text-color solid 2px;
 
       .suggestion-grid-row {
@@ -389,6 +389,12 @@ pre {
         grid-template-columns: 30px 1fr 1fr 1fr;
         font-size: 17px;
         padding: 10px;
+        text-decoration: none;
+
+        span, b, i {
+          display: inline-flex;
+          align-items: flex-end;
+        }
 
         &:hover {
           background-color: #6f7478;
@@ -397,12 +403,20 @@ pre {
 
         &.heading:hover {
           background-color: inherit;
+          cursor: default;
         }
 
         .source-icon {
           display: flex;
           justify-content: center;
         }
+      }
+    }
+
+    // Keep the dropdown showing if hovering, or tabbing over the dropdown
+    &:not(:focus-within, :hover, :active) {
+      #search-result-box {
+        display: none;
       }
     }
 

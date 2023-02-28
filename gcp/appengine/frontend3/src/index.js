@@ -15,60 +15,73 @@ import hljsStyles from '!!raw-loader!highlight.js/styles/github-dark.css';
 
 import { throttle } from "throttle-debounce";
 
-const queryField = document.querySelector('.query-field');
-if (queryField) { // If we are in the list page
-  const searchForm = document.querySelector('#search-form');
-  const querySearchBtn = document.querySelector('#query-search-btn');
-  const queryAutocompleteForm = document.querySelector('#autocomplete_btn');
-  const searchResultBox = document.querySelector('#search-result-box');
-  const queryAutocompleteField = document.querySelector('#query-ac-input');
-  const ecosystemAutocompleteField = document.querySelector('#ecosystem-ac-input');
+document.addEventListener('turbo:load', () => {
+  const queryField = document.querySelector('.query-field');
+  if (queryField) { // If we are in the list page
+    const searchForm = document.querySelector('#search-form');
+    const queryAutocompleteForm = document.querySelector('#autocomplete-form');
+    const searchResultBox = document.querySelector('#search-result-box');
+    const queryAutocompleteField = document.querySelector('#query-ac-input');
+    const ecosystemAutocompleteField = document.querySelector('#ecosystem-ac-input');
 
-  const throttled_query_submit = throttle(500, () => {
-    queryAutocompleteField.value = queryField.value;
-    const ecosystemRadio = document.querySelector('input[name=ecosystem]:checked');
-    ecosystemAutocompleteField.value = ecosystemRadio.value || "";
-    if (queryAutocompleteField.value.length < 2) {
+    const throttled_query_submit = throttle(500, () => {
+      queryAutocompleteField.value = queryField.value;
+      const ecosystemRadio = document.querySelector('input[name=ecosystem]:checked');
+      ecosystemAutocompleteField.value = ecosystemRadio.value || "";
+      if (queryAutocompleteField.value.length < 2) {
+        hideSearchBox();
+        return;
+      }
+
+      queryAutocompleteForm.requestSubmit();
+    });
+    
+    queryField.addEventListener('input', () => {
+      throttled_query_submit();
+    });
+
+    searchForm.addEventListener('submit', () => {
       hideSearchBox();
-      return;
+    });
+
+    function hideSearchBox() {
+      let box = document.querySelector('.search-result-box-inner');
+      if (box) {
+        box.classList.add('hidden');
+      }
     }
 
-    queryAutocompleteForm.click();
-  });
-  queryField.addEventListener('input', (ev) => {
-    throttled_query_submit();
-  });
-
-  searchForm.addEventListener('submit', () => {
-    hideSearchBox();
-  });
-
-  function hideSearchBox() {
-    let box = document.querySelector('.search-result-box-inner');
-    if (box) {
-      box.classList.add('hidden');
+    function selectEcosystem(ecosystem) {
+      const ecosystemButtons = document.querySelectorAll('#search-form input[name=ecosystem]');
+      for (const elem of ecosystemButtons) {
+        if (elem.value == ecosystem) {
+          elem.checked = true;
+        }
+      }
     }
+
+    window.autocompleteClick = function (query, ecosystem) {
+      if (queryField) {
+        queryField.value = query;
+        selectEcosystem(ecosystem);
+        searchForm.requestSubmit();
+        hideSearchBox();
+      }
+    }
+
+    const observer = new MutationObserver(() => {
+      // Search box result arrived, check if search box still needs to be hidden
+      // This can happen if the results for another query arrive after 
+      // queryAutocompleteField goes below length 2
+      if (queryAutocompleteField.value.length < 2) {
+        hideSearchBox();
+      }
+    });
+
+    observer.observe(searchResultBox, { childList: true });
   }
+});
 
-  window.autocompleteClick = function (autocompleteValue) {
-    if (queryField) {
-      queryField.value = autocompleteValue;
-      querySearchBtn.click();
-      hideSearchBox();
-    }
-  }
-
-  const observer = new MutationObserver(() => {
-    // Search box result arrived, check if search box still needs to be hidden
-    // This can happen if the results for another query arrive after 
-    // queryAutocompleteField goes below length 2
-    if (queryAutocompleteField.value.length < 2) {
-      hideSearchBox();
-    }
-  });
-
-  observer.observe(searchResultBox, {childList: true});
-}
 
 // Submits a form in a way such that Turbo can intercept the event.
 // Triggering submit on the form directly would still give a correct resulting
@@ -77,12 +90,8 @@ const submitForm = function(form) {
   if (!form) {
     return;
   }
-  const fakeSubmit = document.createElement('input');
-  fakeSubmit.type = 'submit';
-  fakeSubmit.style.display = 'none';
-  form.appendChild(fakeSubmit);
-  fakeSubmit.click();
-  fakeSubmit.remove();
+  // Use request submit instead of submit for turbo to intercept
+  form.requestSubmit();
 }
 
 // A wrapper around <input type=radio> elements that submits their parent form

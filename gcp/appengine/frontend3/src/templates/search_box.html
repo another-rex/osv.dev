@@ -8,13 +8,13 @@
       </div>
       {% endif %}
       {% for proj in projects %}
-      <div class="suggestion-grid-row">
+      <a class="suggestion-grid-row" onclick="autocompleteClick('{{ proj.project }}', '{{ proj.ecosystem }}')" href="#">
         <mwc-icon class="source-icon">source</mwc-icon>
         <!-- Use javascript to submit search form rather than an input because we have to update the search box -->
-        <span><a href="#" onclick="autocompleteClick('{{ proj.project }}')">{{ proj.project }}</a></span>
+        <span>{{ proj.project }}</span>
         <span><i>Vulnerability Count: {{ proj.count }}</i></span>
         <span><b>{{ proj.ecosystem }}</b></span>
-      </div>
+      </a>
       {% endfor %}
       {% if vulnerabilities %}
       <div class="suggestion-grid-row heading">
@@ -22,16 +22,16 @@
       </div>
       {% endif %}
       {% for vuln in vulnerabilities %}
-      <div class="suggestion-grid-row">
+      <a class="suggestion-grid-row" href="{{ url_for('frontend_handlers.vulnerability', vuln_id=vuln.id()) }}">
         <mwc-icon class="source-icon">bug_report</mwc-icon>
-        <span><a href="#" onclick="autocompleteClick('{{ vuln.id() }}')">{{ vuln.id() }}</a></span>
+        <span>{{ vuln.id() }}</span>
         <span><i>{{vuln.project[0]}}</i></span>
         <span><b>{{ vuln.ecosystem[0] }}</b></span>
-      </div>
+      </a>
       {% endfor %}
     </div>
     {% else %}
-    <h2>No Results</h2>
+    <h2 class="suggestion-grid-row heading">No Results</h2>
     {% endif %}
   </div>
   <turbo-frame>

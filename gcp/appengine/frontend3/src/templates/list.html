@@ -34,10 +34,9 @@ data-column-id="{{ column_id }}"
     <div class="mdc-layout-grid__cell--span-12">
       <h1 class="title">Vulnerability Library</h1>
       <div class="search">
-        <form class="autocomplete-form" action="{{ url_for('frontend_handlers.list_vulnerabilities_autocomplete') }}" data-turbo-frame="search-result-box">
+        <form id="autocomplete-form" action="{{ url_for('frontend_handlers.list_vulnerabilities_autocomplete') }}" data-turbo-frame="search-result-box">
           <input type="search" name="q" id="query-ac-input">
           <input type="search" name="ecosystem" id="ecosystem-ac-input">
-          <input type="submit" id="autocomplete_btn">
         </form>
         <form action="{{ url_for('frontend_handlers.list_vulnerabilities') }}" data-turbo-frame="vulnerability-table" id="search-form" autocomplete="off">
           <submit-radios>
@@ -66,7 +65,7 @@ data-column-id="{{ column_id }}"
             {% endif %}
           </submit-radios>
           <div class="mdc-layout-grid__inner">
-            <div class="query-container-outer mdc-layout-grid__cell--span-5">
+            <div class="query-container-outer mdc-layout-grid__cell--span-10">
               <!-- Hidden query field to take up space, since real field is floating -->
               <mwc-textfield-with-enter disabled value="" class="query-field-hidden"></mwc-textfield-with-enter>
               <div class="query-container">
@@ -176,8 +175,8 @@ data-column-id="{{ column_id }}"
   </turbo-stream>
 </turbo-frame>
 </div>
-<script>
+<!-- <script>
 import {MDCDataTable} from '@material/data-table';
 const dataTable = new MDCDataTable(document.querySelector('.mdc-data-table'));
-</script>
+</script> -->
 {% endblock %}
