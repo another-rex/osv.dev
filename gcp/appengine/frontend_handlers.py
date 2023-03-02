@@ -13,6 +13,7 @@
 # limitations under the License.
 """Handlers for the OSV web frontend."""
 
+from collections import defaultdict
 import json
 import os
 import math
@@ -344,7 +345,7 @@ def osv_get_ecosystem_counts_cached():
   return osv_get_ecosystem_counts()
 
 
-def osv_get_ecosystem_counts():
+def osv_get_ecosystem_counts() -> dict[str, int]:
   """Get count of vulnerabilities per ecosystem."""
   counts = {}
   ecosystems = osv_get_ecosystems()
@@ -432,6 +433,8 @@ def osv_autocomplete_query(search_string: str, page_size: int,
       if bug.ecosystem not in seen
   ]
 
+  project_query_all_eco = defaultdict(int)
+
   project_count_futures: typing.List[ndb.Future] = []
   for bug in project_query_results:
     project_count_futures.append(
@@ -443,6 +446,11 @@ def osv_autocomplete_query(search_string: str, page_size: int,
   for bug, future in zip(project_query_results, project_count_futures):
     bug.count = future.get_result()
     results['projects'].append(bug)
+    project_query_all_eco[bug.project] += bug.count
+
+  for key, val in project_query_all_eco.items():
+    entry = types.SimpleNamespace(project=key, count=val)
+    results['projects'].append(entry)
 
   # Sort descending by number of vulnerabilities
   results['projects'].sort(key=lambda x: -x.count)
@@ -456,8 +464,8 @@ def osv_autocomplete_query(search_string: str, page_size: int,
 def osv_query(search_string: str, page: int, page_size: int,
               affected_only: bool, ecosystem: str):
   """Run an OSV query."""
-  query = osv.Bug.query(osv.Bug.status == osv.BugStatus.PROCESSED,
-                        osv.Bug.public == True)  # pylint: disable=singleton-comparison
+  query: ndb.Query = osv.Bug.query(osv.Bug.status == osv.BugStatus.PROCESSED,
+                                   osv.Bug.public == True)  # pylint: disable=singleton-comparison
 
   if search_string:
     query = query.filter(
@@ -470,18 +478,34 @@ def osv_query(search_string: str, page: int, page_size: int,
     query = query.filter(osv.Bug.ecosystem == ecosystem)
 
   query = query.order(-osv.Bug.last_modified)
-  total = query.count()
-  results = {
-      'total': total,
-      'items': [],
-  }
+
+  if not search_string and not affected_only:
+    # If no search string and not affected only, use the cached ecosystem counts
+    total_future = ndb.Future()
+    total_future.set_result(get_ecosystem_count_for_eco(ecosystem))
+  else:
+    total_future = query.count_async()
+
+  result_items = []
 
   bugs, _, _ = query.fetch_page(
       page_size=page_size, offset=(page - 1) * page_size)
   for bug in bugs:
-    results['items'].append(bug_to_response(bug, detailed=False))
+    result_items.append(bug_to_response(bug, detailed=False))
 
+  results = {
+      'total': total_future.get_result(),
+      'items': result_items,
+  }
   return results
+
+
+def get_ecosystem_count_for_eco(ecosystem: str) -> int:
+  ecosystem_counts = osv_get_ecosystem_counts_cached()
+  if not ecosystem:
+    return sum(ecosystem_counts.values())
+
+  return ecosystem_counts.get(ecosystem, 0)
 
 
 def osv_get_by_id(vuln_id):

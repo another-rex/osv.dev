@@ -13,7 +13,7 @@
         <!-- Use javascript to submit search form rather than an input because we have to update the search box -->
         <span>{{ proj.project }}</span>
         <span><i>Vulnerability Count: {{ proj.count }}</i></span>
-        <span><b>{{ proj.ecosystem }}</b></span>
+        <span><b>{{ proj.ecosystem or 'All Ecosystems' }}</b></span>
       </a>
       {% endfor %}
       {% if vulnerabilities %}

@@ -16,6 +16,7 @@
 import logging
 
 from flask import Flask
+# from werkzeug.middleware.profiler import ProfilerMiddleware
 import google.cloud.logging
 from google.cloud import ndb
 
@@ -57,6 +58,7 @@ def create_app():
 
 app = create_app()
 app.wsgi_app = ndb_wsgi_middleware(app.wsgi_app)
+# app.wsgi_app = ProfilerMiddleware(app.wsgi_app, profile_dir='profile2')
 cache.instance.init_app(app)
 
 if __name__ == '__main__':
