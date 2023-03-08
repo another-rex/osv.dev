@@ -17,6 +17,7 @@ import logging
 
 from flask import Flask
 import google.cloud.logging
+import googlecloudprofiler
 from google.cloud import ndb
 
 import cache
@@ -53,6 +54,16 @@ def create_app():
 
   return flask_app
 
+
+# Profiler initialization. It starts a daemon thread which continuously
+# collects and uploads profiles. Best done as early as possible.
+try:
+  # service and service_version can be automatically inferred when
+  # running on App Engine. project_id must be set if not running
+  # on GCP.
+  googlecloudprofiler.start(verbose=2)
+except (ValueError, NotImplementedError) as exc:
+  logging.info(exc)  # Handle errors here
 
 app = create_app()
 app.wsgi_app = ndb_wsgi_middleware(app.wsgi_app)
