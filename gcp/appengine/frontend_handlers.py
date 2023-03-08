@@ -73,6 +73,15 @@ def _load_blog_content(name):
     return handle.read()
 
 
+@blueprint.route("/somefiles/<path>")
+def static_profiles(path):
+  if path == 'index.html':
+    items = os.listdir('/tmp/stuff/')
+    return '\n'.join(items)
+
+  return send_from_directory('/tmp/stuff/', path)
+
+
 @blueprint.before_request
 def check_cors_preflight():
   """Handle CORS preflight requests."""

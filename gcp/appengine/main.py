@@ -16,14 +16,15 @@
 import logging
 
 from flask import Flask
+from werkzeug.middleware.profiler import ProfilerMiddleware
 import google.cloud.logging
-import googlecloudprofiler
 from google.cloud import ndb
 
 import cache
 import frontend_handlers
 import handlers
 import utils
+import os
 
 ndb_client = ndb.Client()
 
@@ -55,18 +56,14 @@ def create_app():
   return flask_app
 
 
-# Profiler initialization. It starts a daemon thread which continuously
-# collects and uploads profiles. Best done as early as possible.
-try:
-  # service and service_version can be automatically inferred when
-  # running on App Engine. project_id must be set if not running
-  # on GCP.
-  googlecloudprofiler.start(verbose=2)
-except (ValueError, NotImplementedError) as exc:
-  logging.info(exc)  # Handle errors here
+os.makedirs('/tmp/stuff', exist_ok=True)
 
 app = create_app()
 app.wsgi_app = ndb_wsgi_middleware(app.wsgi_app)
+app.wsgi_app = ProfilerMiddleware(
+    app.wsgi_app,
+    profile_dir="/tmp/stuff",
+    filename_format="{time}.{path}.{elapsed:0f}ms")
 cache.instance.init_app(app)
 
 if __name__ == '__main__':
