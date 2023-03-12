@@ -1,8 +1,8 @@
 {% extends 'base.html' %}
-{% set active_section = 'about' %}
+{% set active_section = 'faq' %}
 
 {% block content %}
-<div class="about-page">
+<div class="faq-page">
 <div class="mdc-layout-grid">
   <div class="mdc-layout-grid__inner">
     <div class="mdc-layout-grid__cell--span-12 questions">
@@ -84,6 +84,12 @@
           <p>Vulnerability databases can also benefit from easier interchange
           and vulnerabiltiy sharing from other databases that use the OSV
           format.</p>
+        </div>
+        <h3 class="question">Is the database available to download?</h3>
+        <div class="answer">
+          <p>Yes!</p>
+          <p>The database in available in a GCS bucket maintained by OSV: <a href="https://osv-vulnerabilities.storage.googleapis.com">gs://osv-vulnerabilities</a></p>
+          <p>More information about how to download the database is available <a href="https://github.com/google/osv.dev#data-dumps">here.</a></p>
         </div>
         <h3 class="question">How do I contribute to OSV, or ask a question?</h3>
         <div class="answer">

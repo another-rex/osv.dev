@@ -13,7 +13,7 @@
 # limitations under the License.
 
 service: default
-runtime: python310
+runtime: python311
 
 handlers:
   - url: /static
@@ -48,7 +48,7 @@ automatic_scaling:
 instance_class: F4
 
 env_variables:
-  REDISHOST: 10.126.238.68
+  REDISHOST: 10.85.52.228
   REDISPORT: 6379
 
 vpc_access_connector:

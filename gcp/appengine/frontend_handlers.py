@@ -159,7 +159,12 @@ def blog_post_static_files(blog_name: str, file_name: str):
 
 @blueprint.route('/about')
 def about():
-  return render_template('about.html')
+  return redirect('/faq')
+
+
+@blueprint.route('/faq')
+def faq():
+  return render_template('faq.html')
 
 
 @blueprint.route('/list')
@@ -382,7 +387,7 @@ def osv_query(search_string, page, affected_only, ecosystem):
   if not search_string and not affected_only:
     # If no search string and not affected only, use the cached ecosystem counts
     total_future = ndb.Future()
-    total_future.set_result(get_ecosystem_count_for_eco(ecosystem))
+    total_future.set_result(get_vuln_count_for_ecosystem(ecosystem))
   else:
     total_future = query.count_async()
 
@@ -401,7 +406,7 @@ def osv_query(search_string, page, affected_only, ecosystem):
   return results
 
 
-def get_ecosystem_count_for_eco(ecosystem: str) -> int:
+def get_vuln_count_for_ecosystem(ecosystem: str) -> int:
   ecosystem_counts = osv_get_ecosystem_counts_cached()
   if not ecosystem:
     return sum(ecosystem_counts.values())
