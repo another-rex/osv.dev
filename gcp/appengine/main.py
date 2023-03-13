@@ -68,12 +68,14 @@ def register_cloud_profiler():
     # service and service_version can be automatically inferred when
     # running on App Engine. project_id must be set if not running
     # on GCP.
+    print("starting profiler")
     googlecloudprofiler.start(verbose=3)
   except (ValueError, NotImplementedError) as exc:
     print(exc)  # Handle errors here
 
 
 os.register_at_fork(after_in_child=register_cloud_profiler)
+register_cloud_profiler()
 
 app = create_app()
 app.wsgi_app = ndb_wsgi_middleware(app.wsgi_app)
