@@ -65,5 +65,6 @@ func CopyFromBucket(ctx context.Context, bucketHdl *storage.BucketHandle, name s
 			return "", err
 		}
 	}
+
 	return tmpDir, nil
 }

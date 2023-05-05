@@ -49,7 +49,7 @@ _MAX_VULNERABILITIES_LISTED = 16
 _MAX_MATCHES_TO_CARE = 100
 # Max results to return for DetermineVersion
 _MAX_DETERMINE_VER_RESULTS_TO_RETURN = 10
-_DETERMINE_VER_MIN_SCORE_CUTOFF = 0.2
+_DETERMINE_VER_MIN_SCORE_CUTOFF = 0.0
 # Size of buckets to divide hashes into in DetermineVersion
 # This should match the number in the indexer
 _BUCKET_SIZE = 512

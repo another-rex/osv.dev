@@ -15,10 +15,18 @@ import (
 )
 
 var (
-	repoDir = flag.String("repo", "", "repo directory")
+	repoDir  = flag.String("repo", "", "repo directory")
+	repo2Dir = flag.String("repo2", "", "repo 2 directory")
 )
 
-type Hash = []byte
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+type Hash = [16]byte
 
 // FileResult holds the per file hash and path information.
 type FileResult struct {
@@ -29,9 +37,34 @@ type FileResult struct {
 func main() {
 	flag.Parse()
 	buildGit(*repoDir)
+
+	log.Println(compareTwoResults(buildFileHashes(*repoDir), buildFileHashes(*repo2Dir)))
 }
 
-func buildGit(repoDir string) error {
+func compareTwoResults(a []*FileResult, b []*FileResult) int {
+	mapA := fileHashesToDict(a)
+	mapB := fileHashesToDict(b)
+
+	diffCount := 0
+	for k, fr := range mapA {
+		if _, ok := mapB[k]; !ok {
+			log.Printf("%v", fr.Path)
+			diffCount += 1
+		}
+	}
+
+	return diffCount + max(len(mapB)-len(mapA), 0)
+}
+
+func fileHashesToDict(res []*FileResult) map[Hash]*FileResult {
+	output := make(map[Hash]*FileResult)
+	for _, fr := range res {
+		output[fr.Hash] = fr
+	}
+	return output
+}
+
+func buildFileHashes(repoDir string) []*FileResult {
 	fileExts := []string{
 		".hpp",
 		".h",
@@ -55,29 +88,35 @@ func buildGit(repoDir string) error {
 				hash := md5.Sum(buf)
 				fileResults = append(fileResults, &FileResult{
 					Path: strings.ReplaceAll(p, repoDir, ""),
-					Hash: hash[:],
+					Hash: hash,
 				})
 			}
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("failed during file walk: %v", err)
+		log.Panicf("failed during file walk: %v", err)
 	}
 
 	log.Printf("%v", len(fileResults))
+
+	return fileResults
+}
+
+func buildGit(repoDir string) error {
+	fileResults := buildFileHashes(repoDir)
 
 	b := strings.Builder{}
 	b.WriteString(`{"query": {"name":"protobuf", "file_hashes": [`)
 
 	for i, fr := range fileResults {
 		if i == len(fileResults)-1 {
-			fmt.Fprintf(&b, "{\"hash\": \"%s\"}", base64.StdEncoding.EncodeToString(fr.Hash))
+			fmt.Fprintf(&b, "{\"hash\": \"%s\"}", base64.StdEncoding.EncodeToString(fr.Hash[:]))
 		} else {
-			fmt.Fprintf(&b, "{\"hash\": \"%s\"},", base64.StdEncoding.EncodeToString(fr.Hash))
+			fmt.Fprintf(&b, "{\"hash\": \"%s\"},", base64.StdEncoding.EncodeToString(fr.Hash[:]))
 		}
 	}
 	b.WriteString("]}}")
-
+	os.WriteFile("test", []byte(b.String()), 0666)
 	// TODO: Use proper grpc library calls here
 	cmd := exec.Command("bash")
 	cmd.Args = append(cmd.Args, "-c", `grpcurl -plaintext -d @ -protoset api_descriptor.pb 127.0.0.1:8000 osv.v1.OSV/DetermineVersion`)
