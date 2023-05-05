@@ -106,7 +106,7 @@ func buildGit(repoDir string) error {
 	fileResults := buildFileHashes(repoDir)
 
 	b := strings.Builder{}
-	b.WriteString(`{"query": {"name":"protobuf", "file_hashes": [`)
+	b.WriteString(`{"name":"protobuf", "file_hashes": [`)
 
 	for i, fr := range fileResults {
 		if i == len(fileResults)-1 {
@@ -115,11 +115,12 @@ func buildGit(repoDir string) error {
 			fmt.Fprintf(&b, "{\"hash\": \"%s\"},", base64.StdEncoding.EncodeToString(fr.Hash[:]))
 		}
 	}
-	b.WriteString("]}}")
-	os.WriteFile("test", []byte(b.String()), 0666)
+	b.WriteString("]}")
+
+	// os.WriteFile("test", []byte(b.String()), 0666)
 	// TODO: Use proper grpc library calls here
-	cmd := exec.Command("bash")
-	cmd.Args = append(cmd.Args, "-c", `grpcurl -plaintext -d @ -protoset api_descriptor.pb 127.0.0.1:8000 osv.v1.OSV/DetermineVersion`)
+	cmd := exec.Command("curl")
+	cmd.Args = append(cmd.Args, "-d", b.String(), "https://api.osv.dev/v1/", "https://api.osv.dev/v1experimental/determineversion")
 
 	buffer := bytes.Buffer{}
 	_, err := buffer.Write([]byte(b.String()))
