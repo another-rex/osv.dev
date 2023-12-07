@@ -17,25 +17,29 @@ def main() -> None:
       action=argparse.BooleanOptionalAction,
       dest="dryrun",
       default=True,
-      help="Abort before making changes")
+      help="Abort before making changes",
+  )
   parser.add_argument(
       "--verbose",
       action=argparse.BooleanOptionalAction,
       dest="verbose",
       default=False,
-      help="Display records being operated on")
+      help="Display records being operated on",
+  )
   parser.add_argument(
       "--source",
       action="store",
       dest="source",
       default="cve-osv",
-      help="The prefix of source_id records to delete")
+      help="The prefix of source_id records to delete",
+  )
   parser.add_argument(
       "--project",
       action="store",
       dest="project",
       default="oss-vdb-test",
-      help="GCP project to operate on")
+      help="GCP project to operate on",
+  )
   args = parser.parse_args()
 
   client = datastore.Client(project=args.project)
@@ -43,8 +47,9 @@ def main() -> None:
   query = client.query(kind="Bug")
   query.add_filter(filter=PropertyFilter("source", "=", args.source))
 
-  if not args.verbose:
-    query.keys_only()
+  # Uncomment if you need to print actual contents
+  # if not args.verbose:
+  query.keys_only()
 
   print(f"Running query {query.filters} "
         f"on {query.kind} (in {query.project})...")
@@ -53,7 +58,7 @@ def main() -> None:
 
   print(f"Retrieved {len(result)} bugs to examine for deletion")
 
-  result = list(query.fetch())
+  # Add logic here for filtering `result`
 
   print(f"There are {len(result)} bugs to delete...")
 
@@ -63,7 +68,7 @@ def main() -> None:
       with client.transaction() as xact:
         for r in result[batch:batch + MAX_BATCH_SIZE]:
           if args.verbose:
-            print(f"Deleting {r}")
+            print(f"Deleting {r.key}")
           xact.delete(r.key)
         if args.dryrun:
           raise Exception("Dry run mode. Preventing transaction from commiting")  # pylint: disable=broad-exception-raised
