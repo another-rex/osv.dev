@@ -47,8 +47,6 @@ COPY docs/osv_service_v1.swagger.json docs/
 COPY --from=FRONTEND3_BUILD /build/dist/ dist/
 COPY --from=HUGO_BUILD /build/dist dist/
 
-RUN python -m whitenoise.compress dist/static/
-
 # Run the web service on container startup. Here we use the gunicorn
 # webserver, with one worker process and 8 threads.
 # For environments with multiple CPU cores, increase the number of workers
