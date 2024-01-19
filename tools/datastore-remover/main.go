@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"cloud.google.com/go/datastore"
@@ -18,7 +21,7 @@ var (
 	projectID  = flag.String("project_id", "", "the gcp project ID")
 	batchSize  = flag.Int("batch_size", 500, "batch size for deletions")
 	waitTimeMS = flag.Int("wait_ms", 500, "wait time in between batch deletions")
-	total      = 0
+	total      atomic.Int64
 )
 
 func main() {
@@ -39,29 +42,36 @@ func main() {
 	}
 
 	client, _ := datastore.NewClient(ctx, *projectID)
-	it := client.Run(ctx, datastore.NewQuery(*kind).Order("commit").KeysOnly())
+	var wg sync.WaitGroup
+	for i := 0; i < 16; i++ {
+		iStr := strconv.FormatInt(int64(i), 16)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			it := client.Run(ctx, datastore.NewQuery(*kind).Order("commit").FilterField("commit", ">", iStr).KeysOnly())
+			var batch []*datastore.Key
+			for {
+				key, err := it.Next(nil)
+				if err == iterator.Done {
+					break
+				}
+				if err != nil {
+					log.Fatalf("%v", err)
+				}
+				batch = append(batch, key)
 
-	var batch []*datastore.Key
-	for {
-		key, err := it.Next(nil)
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			log.Fatalf("%v", err)
-		}
-		batch = append(batch, key)
+				if len(batch) >= *batchSize {
+					deleteBatch(ctx, client, batch)
+					batch = nil
+				}
+			}
 
-		if len(batch) >= *batchSize {
-			deleteBatch(ctx, client, batch)
-			batch = nil
-		}
+			if len(batch) > 0 {
+				deleteBatch(ctx, client, batch)
+			}
+		}()
 	}
-
-	if len(batch) > 0 {
-		deleteBatch(ctx, client, batch)
-		batch = nil
-	}
+	wg.Wait()
 }
 
 func deleteBatch(ctx context.Context, client *datastore.Client, keys []*datastore.Key) {
@@ -69,9 +79,10 @@ func deleteBatch(ctx context.Context, client *datastore.Client, keys []*datastor
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
-	total += len(keys)
-	if total%(*batchSize*10) == 0 {
-		log.Printf("Deleted %d.\n", total)
+	total.Add(int64(len(keys)))
+	localTotal := int(total.Load())
+	if localTotal%(*batchSize*10) == 0 {
+		log.Printf("Deleted %d.\n", localTotal)
 	}
 	time.Sleep(time.Duration(*waitTimeMS) * time.Millisecond)
 }
