@@ -39,7 +39,7 @@ func main() {
 	}
 
 	client, _ := datastore.NewClient(ctx, *projectID)
-	it := client.Run(ctx, datastore.NewQuery(*kind).KeysOnly())
+	it := client.Run(ctx, datastore.NewQuery(*kind).Order("commit").KeysOnly())
 
 	var batch []*datastore.Key
 	for {
