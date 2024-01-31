@@ -45,10 +45,17 @@ func main() {
 	var wg sync.WaitGroup
 	for i := 0; i < 16; i++ {
 		iStr := strconv.FormatInt(int64(i), 16)
+		iStrEnd := strconv.FormatInt(int64(i+1), 16)
+		i := i
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			it := client.Run(ctx, datastore.NewQuery(*kind).Order("commit").FilterField("commit", ">", iStr).KeysOnly())
+			query := datastore.NewQuery(*kind).Order("commit").FilterField("commit", ">", iStr).KeysOnly()
+			if i != 15 {
+				query = query.FilterField("commit", "<", iStrEnd)
+			}
+			it := client.Run(ctx, query)
+
 			var batch []*datastore.Key
 			for {
 				key, err := it.Next(nil)
