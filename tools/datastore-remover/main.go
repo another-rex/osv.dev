@@ -8,11 +8,11 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"sync"
 	"sync/atomic"
 	"time"
 
 	"cloud.google.com/go/datastore"
+	"github.com/remeh/sizedwaitgroup"
 	"google.golang.org/api/iterator"
 )
 
@@ -42,41 +42,46 @@ func main() {
 	}
 
 	client, _ := datastore.NewClient(ctx, *projectID)
-	var wg sync.WaitGroup
-	for i := 0; i < 16; i++ {
-		iStr := strconv.FormatInt(int64(i), 16)
-		iStrEnd := strconv.FormatInt(int64(i+1), 16)
-		i := i
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			query := datastore.NewQuery(*kind).Order("commit").FilterField("commit", ">", iStr).KeysOnly()
-			if i != 15 {
-				query = query.FilterField("commit", "<", iStrEnd)
-			}
-			it := client.Run(ctx, query)
-
-			var batch []*datastore.Key
-			for {
-				key, err := it.Next(nil)
-				if err == iterator.Done {
-					break
+	var wg = sizedwaitgroup.New(16)
+	// Invert for loop nesting (this spreads the delete out more evenly)
+	for ii := 0; ii < 16; ii++ {
+		for i := 0; i < 16; i++ {
+			iStr := strconv.FormatInt(int64(i), 16)
+			iiStr := strconv.FormatInt(int64(ii), 16)
+			iiStrEnd := strconv.FormatInt(int64(ii+1), 16)
+			i := i
+			ii := ii
+			wg.Add()
+			go func() {
+				defer wg.Done()
+				query := datastore.NewQuery(*kind).Order("commit").FilterField("commit", ">", iStr+iiStr).KeysOnly()
+				if i != 15 && ii != 15 {
+					query = query.FilterField("commit", "<", iStr+iiStrEnd)
 				}
-				if err != nil {
-					log.Fatalf("%v", err)
-				}
-				batch = append(batch, key)
+				it := client.Run(ctx, query)
 
-				if len(batch) >= *batchSize {
+				var batch []*datastore.Key
+				for {
+					key, err := it.Next(nil)
+					if err == iterator.Done {
+						break
+					}
+					if err != nil {
+						log.Fatalf("%v", err)
+					}
+					batch = append(batch, key)
+
+					if len(batch) >= *batchSize {
+						deleteBatch(ctx, client, batch)
+						batch = nil
+					}
+				}
+
+				if len(batch) > 0 {
 					deleteBatch(ctx, client, batch)
-					batch = nil
 				}
-			}
-
-			if len(batch) > 0 {
-				deleteBatch(ctx, client, batch)
-			}
-		}()
+			}()
+		}
 	}
 	wg.Wait()
 }
