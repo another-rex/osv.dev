@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"sync/atomic"
@@ -23,6 +24,14 @@ var (
 	waitTimeMS = flag.Int("wait_ms", 500, "wait time in between batch deletions")
 	total      atomic.Int64
 )
+
+func scaleUpDelay(completed int) float64 {
+	// completed = 0    =>  2040
+	// completed = 100  =>  346
+	// completed = 500  =>  33
+	// https://www.desmos.com/calculator/g74ffuadpa
+	return 1000 / (0.0001 * math.Pow(float64(completed+70), 2))
+}
 
 func main() {
 	flag.Parse()
@@ -42,7 +51,8 @@ func main() {
 	}
 
 	client, _ := datastore.NewClient(ctx, *projectID)
-	var wg = sizedwaitgroup.New(16)
+	var wg = sizedwaitgroup.New(16) // Limit to 16 parallel goroutines
+
 	// Invert for loop nesting (this spreads the delete out more evenly)
 	for ii := 0; ii < 16; ii++ {
 		for i := 0; i < 16; i++ {
@@ -96,5 +106,8 @@ func deleteBatch(ctx context.Context, client *datastore.Client, keys []*datastor
 	if localTotal%(*batchSize*10) == 0 {
 		log.Printf("Deleted %d.\n", localTotal)
 	}
-	time.Sleep(time.Duration(*waitTimeMS) * time.Millisecond)
+	sleepDuration := time.Duration(*waitTimeMS)*time.Millisecond + time.Duration(scaleUpDelay(localTotal / *batchSize))*time.Millisecond
+	log.Printf("Sleeping for %d milliseconds\n", sleepDuration.Milliseconds())
+
+	time.Sleep(sleepDuration)
 }
