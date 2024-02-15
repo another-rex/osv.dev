@@ -18,11 +18,12 @@ import (
 )
 
 var (
-	kind       = flag.String("kind", "", "kind to delete")
-	projectID  = flag.String("project_id", "", "the gcp project ID")
-	batchSize  = flag.Int("batch_size", 500, "batch size for deletions")
-	waitTimeMS = flag.Int("wait_ms", 500, "wait time in between batch deletions")
-	total      atomic.Int64
+	kind        = flag.String("kind", "", "kind to delete")
+	projectID   = flag.String("project_id", "", "the gcp project ID")
+	batchSize   = flag.Int("batch_size", 500, "batch size for deletions")
+	waitTimeMS  = flag.Int("wait_ms", 500, "wait time in between batch deletions")
+	concurrency = flag.Int("concurrency", 16, "number of concurrent delete queries")
+	total       atomic.Int64
 )
 
 func scaleUpDelay(completed int) float64 {
@@ -51,7 +52,7 @@ func main() {
 	}
 
 	client, _ := datastore.NewClient(ctx, *projectID)
-	var wg = sizedwaitgroup.New(16) // Limit to 16 parallel goroutines
+	var wg = sizedwaitgroup.New(*concurrency) // Limit to 16 parallel goroutines
 
 	// Invert for loop nesting (this spreads the delete out more evenly)
 	for ii := 0; ii < 16; ii++ {
