@@ -4,7 +4,7 @@
     "config:base"
   ],
   "timezone": "Australia/Sydney",
-  "schedule": ["before 6am on wednesday"],
+  "schedule": ["before 4pm on thursday"],
   "labels": ["dependencies"],
   "postUpdateOptions": ["gomodTidy"],
   "osvVulnerabilityAlerts": true,
