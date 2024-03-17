@@ -102,6 +102,33 @@ def ndb_context(func):
   return wrapper
 
 
+def trace_log_fields(context: grpc.ServicerContext) -> dict:
+  """Makes the json_field needed to associate a log with the request trace."""
+  fields = {}
+  trace_context = dict(
+      context.invocation_metadata()).get('x-cloud-trace-context')
+  if trace_context is None:
+    return fields
+
+  # Trace context header example:
+  # "X-Cloud-Trace-Context: TRACE_ID/SPAN_ID;o=TRACE_TRUE"
+  parts = trace_context.split('/')
+  trace_id = parts[0]
+  # We don't set the GOOGLE_CLOUD_PROJECT env var explicitly, and I can't find
+  # any confirmation on whether Cloud Run will set automatically.
+  # Grab the project name from the (undocumented?) field on ndb.Client().
+  # The most correct way to do this would be to use the instance metadata server
+  # https://cloud.google.com/run/docs/container-contract#metadata-server
+  project = getattr(_ndb_client, 'project', 'oss-vdb')  # fall back to oss-vdb
+  fields[
+      'logging.googleapis.com/trace'] = f'projects/{project}/traces/{trace_id}'
+  if len(parts) > 1:
+    span_id = parts[1].split(';')[0]
+    fields['logging.googleapis.com/spanId'] = span_id
+
+  return fields
+
+
 class OSVServicer(osv_service_v1_pb2_grpc.OSVServicer,
                   health_pb2_grpc.HealthServicer):
   """V1 OSV servicer."""
@@ -126,12 +153,34 @@ class OSVServicer(osv_service_v1_pb2_grpc.OSVServicer,
 
     version.
     """
+
+    # Log some information about the query with structured logging
+    logging_trace = trace_log_fields(context)
+    qtype, ecosystem, versioned = query_info(request.query)
+    if ecosystem is not None:
+      logging.info(
+          'QueryAffected for %s "%s"',
+          qtype,
+          ecosystem,
+          extra={
+              'json_fields': {
+                  'details': {
+                      'ecosystem': ecosystem,
+                      'versioned': versioned == 'versioned'
+                  },
+                  **trace_log_fields(context)
+              }
+          })
+    else:
+      logging.info(
+          'QueryAffected for %s', qtype, extra={'json_fields': logging_trace})
+
     page_token = None
     if request.query.page_token:
       try:
         page_token = ndb.Cursor(urlsafe=request.query.page_token)
       except ValueError as e:
-        logging.warning(e)
+        logging.warning(e, extra={'json_fields': logging_trace})
         context.abort(grpc.StatusCode.INVALID_ARGUMENT, 'Invalid page token.')
 
     query_context = QueryContext(
@@ -163,6 +212,52 @@ class OSVServicer(osv_service_v1_pb2_grpc.OSVServicer,
     batch_results = []
     futures = []
 
+    logging_trace = trace_log_fields(context)
+    # Log some information about the query with structured logging e.g.
+    # "message": "QueryAffectedBatch with 15 queries",
+    # "details": {
+    #   "commit": 1,
+    #   "ecosystem": {
+    #     "PyPI": {
+    #       "versioned": 4,
+    #       "versionless": 5
+    #      },
+    #     "": {  // no ecosystem specified
+    #       "versioned": 1,
+    #     }
+    #   },
+    #   "purl": {
+    #     "golang": {  // purl type, not OSV ecosystem
+    #       "versionless": 1
+    #     }
+    #   }
+    #   "invalid": 2
+    # }
+    # Fields are not included if the value is empty/0
+    query_details = {
+        'commit': 0,
+        'ecosystem': defaultdict(lambda: defaultdict(int)),
+        'purl': defaultdict(lambda: defaultdict(int)),
+        'invalid': 0,
+    }
+    for query in request.query.queries:
+      qtype, ecosystem, versioned = query_info(query)
+      if ecosystem is not None:
+        query_details[qtype][ecosystem][versioned] += 1
+      else:
+        query_details[qtype] += 1
+
+    # Filter out empty fields
+    query_details = {k: v for k, v in query_details.items() if v}
+
+    logging.info(
+        'QueryAffectedBatch with %d queries',
+        len(request.query.queries),
+        extra={'json_fields': {
+            'details': query_details,
+            **logging_trace
+        }})
+
     if len(request.query.queries) > _MAX_BATCH_QUERY:
       context.abort(grpc.StatusCode.INVALID_ARGUMENT, 'Too many queries.')
       return None
@@ -175,7 +270,7 @@ class OSVServicer(osv_service_v1_pb2_grpc.OSVServicer,
         try:
           page_token = ndb.Cursor(urlsafe=query.page_token)
         except ValueError as e:
-          logging.warning(e)
+          logging.warning(e, extra={'json_fields': logging_trace})
           context.abort(grpc.StatusCode.INVALID_ARGUMENT,
                         f'Invalid page token at index: {i}.')
       query_context = QueryContext(
@@ -226,6 +321,38 @@ class OSVServicer(osv_service_v1_pb2_grpc.OSVServicer,
     """Health check per the gRPC health check protocol."""
     del request  # Unused.
     context.abort(grpc.StatusCode.UNIMPLEMENTED, "Unimplemented")
+
+
+def query_info(query) -> tuple[str, str, str]:
+  """Returns information about a query, for logging purposes.
+  First return value is one of 'commit', 'purl', 'ecosystem', 'invalid'.
+  If 'ecosystem' or 'purl', second two return values are the ecosystem name,
+  then 'versioned' or 'versionless' depending if the 'version' field is set.
+  Otherwise, last two return values are None.
+  """
+  if query.WhichOneof('param') == 'commit':
+    return 'commit', None, None
+  if not query.HasField('package'):
+    return 'invalid', None, None
+  if not query.package.purl and not query.package.name:
+    return 'invalid', None, None
+  qtype = 'ecosystem'
+  ecosystem = query.package.ecosystem
+  version = query.version
+  if query.package.purl:
+    try:
+      purl = PackageURL.from_string(query.package.purl)  # can raise ValueError
+      if query.package.ecosystem or query.package.name:
+        raise ValueError('purl and name/ecosystem cannot both be specified')
+      if purl.version and query.version:
+        raise ValueError('purl version and version cannot both be specified')
+      qtype = 'purl'
+      ecosystem = purl.type
+      version = purl.version or version
+    except ValueError:
+      return 'invalid', None, None
+
+  return qtype, ecosystem, 'versioned' if version else 'versionless'
 
 
 # Wrapped in a separate class
@@ -583,7 +710,10 @@ def do_query(query, context: QueryContext, include_details=True):
 
   if next_page_token:
     next_page_token = next_page_token.urlsafe()
-    logging.warning('Page size limit hit, response size: %s', len(bugs))
+    logging.warning(
+        'Page size limit hit, response size: %s',
+        len(bugs),
+        extra={'json_fields': trace_log_fields(context.service_context)})
 
   return bugs, next_page_token
 
@@ -927,7 +1057,9 @@ def query_by_version(context: QueryContext,
           context, query, package_name, ecosystem, purl, version)
 
   else:
-    logging.warning("Package query without ecosystem specified")
+    logging.warning(
+        "Package query without ecosystem specified",
+        extra={'json_fields': trace_log_fields(context.service_context)})
     # Unspecified ecosystem. Try semver first.
 
     # TODO: Remove after testing how many consumers are
@@ -1007,7 +1139,7 @@ def query_by_package(context: QueryContext, package_name: str, ecosystem: str,
 
 def serve(port: int, local: bool):
   """Configures and runs the OSV API server."""
-  server = grpc.server(concurrent.futures.ThreadPoolExecutor(max_workers=10))
+  server = grpc.server(concurrent.futures.ThreadPoolExecutor(max_workers=5))
   servicer = OSVServicer()
   osv_service_v1_pb2_grpc.add_OSVServicer_to_server(servicer, server)
   health_pb2_grpc.add_HealthServicer_to_server(servicer, server)
