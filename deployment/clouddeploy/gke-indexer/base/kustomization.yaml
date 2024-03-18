@@ -1,4 +1,0 @@
-resources:
-- indexer-controller.yaml
-- indexer-scaler.yaml
-- indexer-worker.yaml
