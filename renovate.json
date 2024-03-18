@@ -8,64 +8,10 @@
   "labels": ["dependencies"],
   "postUpdateOptions": ["gomodTidy"],
   "osvVulnerabilityAlerts": true,
-  // "lockFileMaintenance": { "enabled": true },
   "packageRules": [
-    // {
-    //   "matchUpdateTypes": ["major"],
-    //   "enabled": false
-    // },
-    // {
-    //   "matchFileNames": ["gcp/appengine/**"],
-    //   "matchCategories": ["python"],
-    //   "groupName": "appengine-backend"
-    // },
-    // {
-    //   "matchFileNames": ["gcp/appengine/**"],
-    //   "matchCategories": ["js"],
-    //   "groupName": "appengine-frontend"
-    // },
-    // {
-    //   "matchFileNames": ["gcp/api/**"],
-    //   "groupName": "api"
-    // },
-    // {
-    //   "matchFileNames": ["gcp/functions/**"],
-    //   "groupName": "functions"
-    // },
-    // {
-    //   "matchFileNames": ["docker/**"],
-    //   "matchCategories": ["python"],
-    //   "groupName": "workers"
-    // },
-    // {
-    //   "matchFileNames": ["docker/**"],
-    //   "matchCategories": ["golang"],
-    //   "groupName": "indexer"
-    // },
-    // {
-    //   "matchFileNames": ["vulnfeeds/**"],
-    //   "groupName": "vulnfeeds"
-    // },
-    // {
-    //   "matchFileNames": ["docs/**"],
-    //   "groupName": "docs"
-    // },
-    // {
-    //   "matchFileNames": ["tools/**"],
-    //   "groupName": "tools"
-    // },
     {
       "matchFileNames": [".github/**"],
       "groupName": "workflows"
     }
-    // {
-    //   "matchFileNames": ["Pipfile"],
-    //   "groupName": "osv-lib"
-    // },
-    // {
-    //   "matchDatasources": ["docker"],
-    //   "matchPackageNames": ["python"],
-    //   "enabled": false
-    // }
   ]
 }
