@@ -57,7 +57,7 @@
     {
       "matchFileNames": [".github/**"],
       "groupName": "workflows"
-    },
+    }
     // {
     //   "matchFileNames": ["Pipfile"],
     //   "groupName": "osv-lib"
