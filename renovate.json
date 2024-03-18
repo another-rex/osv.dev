@@ -10,8 +10,13 @@
   "osvVulnerabilityAlerts": true,
   "packageRules": [
     {
+      "packagePatterns": ["*"],
+      "enabled": false
+    }
+    {
       "matchFileNames": [".github/**"],
-      "groupName": "workflows"
+      "groupName": "workflows",
+      "enabled": true
     }
   ]
 }
