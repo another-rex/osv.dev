@@ -12,7 +12,7 @@
     {
       "packagePatterns": ["*"],
       "enabled": false
-    }
+    },
     {
       "matchFileNames": [".github/**"],
       "groupName": "workflows",
