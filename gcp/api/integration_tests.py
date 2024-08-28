@@ -139,7 +139,7 @@ class IntegrationTests(unittest.TestCase,
       'summary': 'Heap-double-free in mrb_default_allocf',
   }
 
-  def _get(self, vuln_id):
+  def _get(self, vuln_id: str):
     """Get a vulnerability."""
     response = requests.get(_api() + '/v1/vulns/' + vuln_id, timeout=_TIMEOUT)
     return response.json()

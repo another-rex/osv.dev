@@ -32,10 +32,10 @@ class ServerInstance:
 
   def check(self):
     """Check that the server is still up."""
-    if self.backend.poll():
+    if self.backend and self.backend.poll():
       raise RuntimeError('Backend process died.')
 
-    if self.esp.poll():
+    if self.esp and self.esp.poll():
       raise RuntimeError('ESP process died.')
 
   def stop(self):
