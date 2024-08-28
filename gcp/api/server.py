@@ -714,7 +714,6 @@ def determine_version(
 def do_query(query: osv_service_v1_pb2.Query,
              context: QueryContext,
              include_details=True):
-  logging.warning("First running: %s", query.package.name)
   fake_future = ndb.Future("dummy")
   fake_future.set_result(True)
   yield fake_future
@@ -725,7 +724,6 @@ def do_query_inner(query: osv_service_v1_pb2.Query,
                    context: QueryContext,
                    include_details=True) -> tuple[list, str | None]:
   """Do a query."""
-  logging.warning("Query running: %s", query.package.name)
   if query.HasField('package'):
     package_name = query.package.name
     ecosystem = query.package.ecosystem
@@ -844,7 +842,6 @@ def do_query_inner(query: osv_service_v1_pb2.Query,
   if next_page_token_str:
     logging.warning('Page size limit hit, response size: %s', len(bugs))
 
-  logging.warning("Query ending: %s", query.package.name)
   return bugs, next_page_token_str
 
 
@@ -1243,7 +1240,6 @@ def query_by_version(
   project = get_gcp_project()
   if ecosystem:
     if is_semver:
-      logging.warning("This should be triggered")
       # Ecosystem supports semver only.
       bugs = _query_by_semver(context, query, package_name, ecosystem, purl,
                               version)
