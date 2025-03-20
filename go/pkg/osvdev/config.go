@@ -16,7 +16,7 @@ func DefaultConfig() ClientConfig {
 		JitterMultiplier:           2,
 		BackoffDurationExponential: 2,
 		BackoffDurationMultiplier:  1,
-		UserAgent:                  "osv-dev-api-go",
+		UserAgent:                  "osv-dev-api-go--tetsetetset",
 		MaxConcurrentBatchRequests: 10,
 	}
 }
