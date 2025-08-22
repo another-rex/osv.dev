@@ -4,15 +4,15 @@ go 1.23.6
 
 require (
 	cloud.google.com/go/logging v1.13.0
-	cloud.google.com/go/secretmanager v1.14.6
+	cloud.google.com/go/secretmanager v1.15.0
 	github.com/aquasecurity/go-pep440-version v0.0.1
-	github.com/atombender/go-jsonschema v0.18.0
-	github.com/go-git/go-git/v5 v5.14.0
+	github.com/atombender/go-jsonschema v0.20.0
+	github.com/go-git/go-git/v5 v5.16.2
 	github.com/google/go-cmp v0.7.0
 	github.com/google/osv-scanner v1.9.2
 	github.com/knqyf263/go-cpe v0.0.0-20230627041855-cb0794d06872
 	github.com/sethvargo/go-retry v0.3.0
-	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
+	golang.org/x/exp 8b4c13bb791b
 	gopkg.in/yaml.v2 v2.4.0
 )
 
