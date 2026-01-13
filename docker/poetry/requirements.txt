@@ -289,9 +289,9 @@ fastjsonschema==2.21.1 \
     --hash=sha256:794d4f0a58f848961ba16af7b9c85a3e88cd360df008c59aac6fc5ae9323b5d4 \
     --hash=sha256:c9e5b7e908310918cf494a434eeb31384dd84a98b57a30bcb1f535015b554667
     # via poetry
-filelock==3.16.1 \
-    --hash=sha256:2082e5703d51fbf98ea75855d9d5527e33d8ff23099bec374a134febee6946b0 \
-    --hash=sha256:c249fbfcd5db47e5e2d6d62198e565475ee65e4831e2561c8e313fa7eb961435
+filelock==3.20.3 \
+    --hash=sha256:18c57ee915c7ec61cff0ecf7f0f869936c7c30191bb0cf406f1341778d0834e1 \
+    --hash=sha256:4b0dda527ee31078689fc205ec4f1c1bf7d56cf88b6dc9426c4f230e46c2dce1
     # via
     #   cachecontrol
     #   virtualenv
@@ -558,9 +558,9 @@ urllib3==2.2.3 \
     # via
     #   dulwich
     #   requests
-virtualenv==20.28.0 \
-    --hash=sha256:23eae1b4516ecd610481eda647f3a7c09aea295055337331bb4e6892ecce47b0 \
-    --hash=sha256:2c9c3262bb8e7b87ea801d715fae4495e6032450c71d2309be9550e7364049aa
+virtualenv==20.36.1 \
+    --hash=sha256:575a8d6b124ef88f6f51d56d656132389f961062a9177016a50e4f507bbcc19f \
+    --hash=sha256:8befb5c81842c641f8ee658481e42641c68b5eab3521d8e092d18320902466ba
     # via poetry
 zipp==3.21.0 \
     --hash=sha256:2c9958f6430a2040341a52eb608ed6dd93ef4392e02ffe219417c1b28b5dd1f4 \
