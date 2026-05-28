@@ -13,6 +13,7 @@ import (
 	"github.com/go-git/go-git/v6"
 	"github.com/go-git/go-git/v6/plumbing/object"
 	"github.com/google/osv.dev/go/internal/models"
+	"github.com/google/osv.dev/go/internal/repos"
 )
 
 func TestGitSourceRecord_Open(t *testing.T) {
@@ -405,5 +406,293 @@ func TestHandleReconcileGit_CleanUntracked(t *testing.T) {
 	}
 	if _, err := os.Stat(trackedFilePathB); err != nil {
 		t.Errorf("Expected tracked file B to still exist, got error: %v", err)
+	}
+}
+
+func TestChangedFiles_NilParent(t *testing.T) {
+	// Setup a temporary git repo acting as the remote source
+	remoteDir := t.TempDir()
+	remoteRepo, err := git.PlainInit(remoteDir, false)
+	if err != nil {
+		t.Fatalf("Failed to init remote repo: %v", err)
+	}
+	remoteWt, err := remoteRepo.Worktree()
+	if err != nil {
+		t.Fatalf("Failed to get remote worktree: %v", err)
+	}
+
+	// Create a file in remote
+	filePath := filepath.Join(remoteDir, "test.json")
+	if err := os.WriteFile(filePath, []byte("data"), 0600); err != nil {
+		t.Fatalf("Failed to write file: %v", err)
+	}
+	if _, err := remoteWt.Add("test.json"); err != nil {
+		t.Fatalf("Failed to add file: %v", err)
+	}
+	hash, err := remoteWt.Commit("Init", &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "Test",
+			Email: "test@example.com",
+			When:  time.Now(),
+		},
+	})
+	if err != nil {
+		t.Fatalf("Failed to commit: %v", err)
+	}
+
+	// Clone it locally
+	localDir := t.TempDir()
+	localRepo, err := repos.CloneToDir(t.Context(), remoteDir, localDir, true)
+	if err != nil {
+		t.Fatalf("Failed to clone repo: %v", err)
+	}
+
+	sourceRepo := &models.SourceRepository{
+		Name:      "test-git-repo",
+		Type:      models.SourceRepositoryTypeGit,
+		Extension: ".json",
+		Git: &models.SourceRepoGit{
+			URL:              remoteDir,
+			LastSyncedCommit: "", // Empty to force nil parent tree
+		},
+	}
+
+	changes, currentCommit, err := changedFiles(t.Context(), sharedRepo{Repository: localRepo, mu: &sync.Mutex{}}, sourceRepo)
+	if err != nil {
+		t.Fatalf("changedFiles failed: %v", err)
+	}
+
+	if currentCommit.Hash != hash {
+		t.Errorf("Expected current commit %s, got %s", hash, currentCommit.Hash)
+	}
+
+	// We expect 1 change (the addition of test.json)
+	if len(changes) != 1 {
+		t.Fatalf("Expected 1 change, got %d", len(changes))
+	}
+
+	change := changes[0]
+	t.Logf("Change: from=%q, to=%q", change.from, change.to)
+
+	if change.from != "" {
+		t.Errorf("Expected change.from to be empty, got %q", change.from)
+	}
+	if change.to != "test.json" {
+		t.Errorf("Expected change.to to be 'test.json', got %q", change.to)
+	}
+}
+
+func TestHandleImportGit_DeletionMultiCommit(t *testing.T) {
+	// Setup a temporary git repo acting as the remote source
+	remoteDir := t.TempDir()
+	remoteRepo, err := git.PlainInit(remoteDir, false)
+	if err != nil {
+		t.Fatalf("Failed to init remote repo: %v", err)
+	}
+	remoteWt, err := remoteRepo.Worktree()
+	if err != nil {
+		t.Fatalf("Failed to get remote worktree: %v", err)
+	}
+
+	// Commit A: Add CVE-A.json and CVE-B.json
+	if err := os.WriteFile(filepath.Join(remoteDir, "CVE-A.json"), []byte("{}"), 0600); err != nil {
+		t.Fatalf("Failed to write file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(remoteDir, "CVE-B.json"), []byte("{}"), 0600); err != nil {
+		t.Fatalf("Failed to write file: %v", err)
+	}
+	if _, err := remoteWt.Add("CVE-A.json"); err != nil {
+		t.Fatalf("Failed to add file: %v", err)
+	}
+	if _, err := remoteWt.Add("CVE-B.json"); err != nil {
+		t.Fatalf("Failed to add file: %v", err)
+	}
+	commitA, _ := remoteWt.Commit("Commit A", &git.CommitOptions{
+		Author: &object.Signature{Name: "Test", Email: "test@example.com", When: time.Now()},
+	})
+
+	// Commit B: Delete CVE-A.json
+	_, _ = remoteWt.Remove("CVE-A.json")
+	_, _ = remoteWt.Commit("Commit B (Delete A)", &git.CommitOptions{
+		Author: &object.Signature{Name: "Test", Email: "test@example.com", When: time.Now()},
+	})
+
+	// Commit C: Modify CVE-B.json
+	if err := os.WriteFile(filepath.Join(remoteDir, "CVE-B.json"), []byte(`{"modified": true}`), 0600); err != nil {
+		t.Fatalf("Failed to write file: %v", err)
+	}
+	if _, err := remoteWt.Add("CVE-B.json"); err != nil {
+		t.Fatalf("Failed to add file: %v", err)
+	}
+	commitC, _ := remoteWt.Commit("Commit C (Modify B)", &git.CommitOptions{
+		Author: &object.Signature{Name: "Test", Email: "test@example.com", When: time.Now()},
+	})
+
+	mockStore := &mockSourceRepositoryStore{
+		updates: make(map[string]any),
+	}
+	workDir := t.TempDir()
+
+	config := Config{
+		SourceRepoStore: mockStore,
+		GitWorkDir:      workDir,
+	}
+
+	sourceRepo := &models.SourceRepository{
+		Name:      "test-git-repo",
+		Type:      models.SourceRepositoryTypeGit,
+		Extension: ".json",
+		Git: &models.SourceRepoGit{
+			URL:              remoteDir,
+			LastSyncedCommit: commitA.String(), // Sync from Commit A
+		},
+	}
+
+	ch := make(chan WorkItem, 10)
+	err = handleImportGit(t.Context(), ch, config, sourceRepo)
+	if err != nil {
+		t.Fatalf("handleImportGit failed: %v", err)
+	}
+	close(ch)
+
+	items := make([]WorkItem, 0, 10)
+	for r := range ch {
+		items = append(items, r)
+	}
+
+	// We expect 2 records:
+	// 1. Deletion of CVE-A.json (ActionWithdraw)
+	// 2. Modification of CVE-B.json (ActionImport)
+	if len(items) != 2 {
+		t.Fatalf("Expected 2 records, got %d", len(items))
+	}
+
+	var deletedItem, modifiedItem *WorkItem
+	for i := range items {
+		switch items[i].SourcePath {
+		case "CVE-A.json":
+			deletedItem = &items[i]
+		case "CVE-B.json":
+			modifiedItem = &items[i]
+		}
+	}
+
+	if deletedItem == nil {
+		t.Errorf("Expected CVE-A.json to be processed")
+	} else if deletedItem.Action != ActionWithdraw {
+		t.Errorf("Expected CVE-A.json to have ActionWithdraw, got %v", deletedItem.Action)
+	}
+
+	if modifiedItem == nil {
+		t.Errorf("Expected CVE-B.json to be processed")
+	} else if modifiedItem.Action != ActionImport {
+		t.Errorf("Expected CVE-B.json to have ActionImport, got %v", modifiedItem.Action)
+	}
+
+	// Verify the LastSyncedCommit was updated to Commit C
+	if sourceRepo.Git.LastSyncedCommit != commitC.String() {
+		t.Errorf("Expected LastSyncedCommit %s, got %s", commitC.String(), sourceRepo.Git.LastSyncedCommit)
+	}
+}
+
+func TestHandleImportGit_Move(t *testing.T) {
+	// Setup a temporary git repo acting as the remote source
+	remoteDir := t.TempDir()
+	remoteRepo, err := git.PlainInit(remoteDir, false)
+	if err != nil {
+		t.Fatalf("Failed to init remote repo: %v", err)
+	}
+	remoteWt, err := remoteRepo.Worktree()
+	if err != nil {
+		t.Fatalf("Failed to get remote worktree: %v", err)
+	}
+
+	// Commit A: Add CVE-A.json
+	if err := os.WriteFile(filepath.Join(remoteDir, "CVE-A.json"), []byte("{}"), 0600); err != nil {
+		t.Fatalf("Failed to write file: %v", err)
+	}
+	if _, err := remoteWt.Add("CVE-A.json"); err != nil {
+		t.Fatalf("Failed to add file: %v", err)
+	}
+	commitA, _ := remoteWt.Commit("Commit A", &git.CommitOptions{
+		Author: &object.Signature{Name: "Test", Email: "test@example.com", When: time.Now()},
+	})
+
+	// Commit B: Move CVE-A.json to CVE-B.json
+	err = os.Rename(filepath.Join(remoteDir, "CVE-A.json"), filepath.Join(remoteDir, "CVE-B.json"))
+	if err != nil {
+		t.Fatalf("Failed to rename file: %v", err)
+	}
+	_, _ = remoteWt.Add("CVE-B.json")
+	_, _ = remoteWt.Remove("CVE-A.json")
+	commitB, _ := remoteWt.Commit("Commit B (Move A to B)", &git.CommitOptions{
+		Author: &object.Signature{Name: "Test", Email: "test@example.com", When: time.Now()},
+	})
+
+	mockStore := &mockSourceRepositoryStore{
+		updates: make(map[string]any),
+	}
+	workDir := t.TempDir()
+
+	config := Config{
+		SourceRepoStore: mockStore,
+		GitWorkDir:      workDir,
+	}
+
+	sourceRepo := &models.SourceRepository{
+		Name:      "test-git-repo",
+		Type:      models.SourceRepositoryTypeGit,
+		Extension: ".json",
+		Git: &models.SourceRepoGit{
+			URL:              remoteDir,
+			LastSyncedCommit: commitA.String(), // Sync from Commit A
+		},
+	}
+
+	ch := make(chan WorkItem, 10)
+	err = handleImportGit(t.Context(), ch, config, sourceRepo)
+	if err != nil {
+		t.Fatalf("handleImportGit failed: %v", err)
+	}
+	close(ch)
+
+	items := make([]WorkItem, 0, 10)
+	for r := range ch {
+		items = append(items, r)
+	}
+
+	t.Logf("Received %d work items", len(items))
+	for _, it := range items {
+		t.Logf("Item: Path=%q, Action=%v", it.SourcePath, it.Action)
+	}
+
+	if len(items) != 2 {
+		t.Errorf("Expected 2 records (1 delete, 1 add), got %d", len(items))
+	}
+
+	var deletedItem, importedItem *WorkItem
+	for i := range items {
+		switch items[i].SourcePath {
+		case "CVE-A.json":
+			deletedItem = &items[i]
+		case "CVE-B.json":
+			importedItem = &items[i]
+		}
+	}
+
+	if deletedItem == nil {
+		t.Errorf("Expected CVE-A.json to be processed (deleted)")
+	} else if deletedItem.Action != ActionWithdraw {
+		t.Errorf("Expected CVE-A.json to have ActionWithdraw, got %v", deletedItem.Action)
+	}
+
+	if importedItem == nil {
+		t.Errorf("Expected CVE-B.json to be processed (imported)")
+	} else if importedItem.Action != ActionImport {
+		t.Errorf("Expected CVE-B.json to have ActionImport, got %v", importedItem.Action)
+	}
+
+	if sourceRepo.Git.LastSyncedCommit != commitB.String() {
+		t.Errorf("Expected LastSyncedCommit %s, got %s", commitB.String(), sourceRepo.Git.LastSyncedCommit)
 	}
 }

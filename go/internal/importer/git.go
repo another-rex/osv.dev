@@ -141,6 +141,28 @@ func handleImportGit(ctx context.Context, ch chan<- WorkItem, config Config, sou
 		if isReimport {
 			pool = config.ReimportTaskPool
 		}
+		if from != "" && to != "" && from != to {
+			// File was renamed/moved. Withdraw the old path.
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case ch <- WorkItem{
+				Context: ctx,
+				SourceRecord: gitSourceRecord{
+					path: from,
+					repo: repo,
+				},
+				SourceRepository: sourceRepo.Name,
+				SourcePath:       from,
+				Action:           ActionWithdraw,
+				Strict:           sourceRepo.Strictness,
+				Format:           format,
+				KeyPath:          sourceRepo.KeyPath,
+				IsReimport:       isReimport,
+				WorkPool:         pool,
+			}:
+			}
+		}
 		if to == "" {
 			// Object was deleted / moved to ignored
 			select {
