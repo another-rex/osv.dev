@@ -1,6 +1,6 @@
 module github.com/google/osv.dev/gcp/indexer
 
-go 1.23.6
+go 1.25.0
 
 require (
 	cloud.google.com/go/datastore v1.20.0
@@ -9,7 +9,7 @@ require (
 	github.com/go-git/go-git/v5 v5.14.0
 	github.com/golang/glog v1.2.4
 	github.com/google/go-cmp v0.7.0
-	golang.org/x/sync v0.12.0
+	golang.org/x/sync v0.20.0
 	google.golang.org/api v0.225.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -62,11 +62,11 @@ require (
 	go.opentelemetry.io/otel/sdk v1.34.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.34.0 // indirect
 	go.opentelemetry.io/otel/trace v1.34.0 // indirect
-	golang.org/x/crypto v0.36.0 // indirect
-	golang.org/x/net v0.37.0 // indirect
+	golang.org/x/crypto v0.52.0 // indirect
+	golang.org/x/net v0.54.0 // indirect
 	golang.org/x/oauth2 v0.28.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
-	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
 	google.golang.org/genproto v0.0.0-20250122153221-138b5a5a4fd4 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250124145028-65684f501c47 // indirect
