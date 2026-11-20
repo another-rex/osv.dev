@@ -1,6 +1,6 @@
 module github.com/google/osv/vulnfeeds
 
-go 1.23.6
+go 1.25.0
 
 require (
 	cloud.google.com/go/logging v1.13.0
@@ -57,7 +57,7 @@ require (
 	golang.org/x/net v0.37.0 // indirect
 	golang.org/x/oauth2 v0.27.0 // indirect
 	golang.org/x/sync v0.12.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/sys v0.44.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
 	golang.org/x/time v0.10.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
