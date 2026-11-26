@@ -81,7 +81,7 @@ module "osv_api" {
 
   project_id                     = "oss-vdb"
   api_url                        = "api.osv.dev"
-  esp_version                    = "2.57.2"
+  esp_version                    = "2.57.3"
   frontend_service_account_email = module.osv.frontend_service_account_email
   service_account_email          = module.osv.frontend_service_account_email
 
@@ -236,11 +236,11 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 8.11.0"
+      version = "~> 8.12.0"
     }
     google-beta = {
       source  = "hashicorp/google-beta"
-      version = "~> 8.11.0"
+      version = "~> 8.12.0"
     }
     external = {
       source  = "hashicorp/external"
